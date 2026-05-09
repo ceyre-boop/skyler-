@@ -6,8 +6,7 @@ linkButtons.forEach((button, index) => {
   button.style.transform = "translateY(8px)";
 
   window.setTimeout(() => {
-    button.style.transition =
-      "opacity 280ms ease, transform 280ms ease, box-shadow 160ms ease, background 160ms ease";
+    button.style.transition = "opacity var(--enter-duration) ease, transform var(--enter-duration) ease";
     button.style.opacity = "1";
     button.style.transform = "";
   }, 60 + index * 40);

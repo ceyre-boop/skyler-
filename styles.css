@@ -7,6 +7,7 @@
   --text-main: #3d3052;
   --text-subtle: #6f5b89;
   --shadow: 0 12px 30px rgba(118, 89, 157, 0.18);
+  --enter-duration: 280ms;
 }
 
 /* Base reset */
