@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@500;700;800&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./styles.css" />
@@ -20,35 +20,66 @@
     <main class="page">
       <!-- Header / profile section -->
       <header class="profile">
-        <img
-          class="profile__photo"
-          src="https://github.com/user-attachments/assets/3c3e9ac4-d014-422c-a1d7-9dd8dc2278a8"
-          alt="Skyler Clark profile photo"
-        />
-        <h1 class="profile__name">Skyler Clark</h1>
+        <div class="profile__hero">
+          <h1 class="profile__name">Skyler Clark</h1>
+          <img
+            class="profile__photo"
+            src="https://github.com/user-attachments/assets/3c3e9ac4-d014-422c-a1d7-9dd8dc2278a8"
+            alt="Skyler Clark profile photo"
+          />
+        </div>
         <p class="profile__bio">Drummer • Creator • Worship • SkyFam</p>
+
+        <!-- Quick social icon strip -->
+        <nav class="profile__socials" aria-label="Quick social links">
+          <a class="social-icon" href="https://www.tiktok.com/@skylerclarkk" target="_blank" rel="noopener noreferrer" aria-label="TikTok">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.16 8.16 0 0 0 4.77 1.52V6.76a4.83 4.83 0 0 1-1-.07z"/></svg>
+          </a>
+          <a class="social-icon" href="https://www.instagram.com/crashingskymusic?igsh=YWt4cnU1YjB5Znoz" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+          </a>
+          <a class="social-icon" href="https://www.facebook.com/profile.php?id=61557407113127&amp;mibextid=LQQJ4d" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          </a>
+          <a class="social-icon" href="https://snapchat.com/t/IdUhhVky" target="_blank" rel="noopener noreferrer" aria-label="Snapchat">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.299 4.847l-.003.06c-.012.18-.022.345-.03.51.075.045.203.09.401.09.3-.016.659-.12 1.033-.301.165-.088.344-.104.464-.104.182 0 .359.029.509.09.45.149.734.479.734.838.015.449-.39.839-1.213 1.168-.089.029-.209.075-.344.119-.45.135-1.139.36-1.333.81-.09.224-.061.524.12.868l.015.015c.06.136 1.526 3.475 4.791 4.014.255.044.435.27.42.509 0 .075-.015.149-.045.225-.24.569-1.273.988-3.146 1.271-.059.091-.12.375-.164.57-.029.179-.074.36-.134.553-.076.271-.27.405-.555.405h-.03c-.135 0-.313-.031-.538-.074-.36-.075-.765-.135-1.273-.135-.3 0-.599.015-.913.074-.6.104-1.123.464-1.723.884-.853.599-1.826 1.288-3.294 1.288-.06 0-.119-.015-.181-.015h-.16c-1.468 0-2.427-.675-3.279-1.288-.599-.42-1.107-.779-1.707-.884-.314-.045-.629-.074-.928-.074-.54 0-.958.089-1.272.149-.211.043-.391.074-.54.074-.374 0-.523-.224-.583-.42-.061-.192-.09-.389-.135-.567-.046-.181-.105-.494-.166-.57-1.918-.222-2.95-.642-3.189-1.226-.031-.063-.052-.15-.055-.225-.015-.243.165-.465.42-.509 3.264-.54 4.73-3.879 4.791-4.02l.016-.029c.18-.345.224-.645.119-.869-.195-.434-.884-.658-1.332-.809-.121-.029-.24-.074-.346-.119-1.107-.435-1.257-.93-1.197-1.273.09-.479.674-.793 1.168-.793.146 0 .27.029.383.074.42.194.789.3 1.104.3.234 0 .384-.06.465-.105l-.046-.569c-.098-1.626-.225-3.651.307-4.837C7.392 1.077 10.739.807 11.727.807l.48-.014z"/></svg>
+          </a>
+          <a class="social-icon" href="https://discord.gg/f64WqrJf5" target="_blank" rel="noopener noreferrer" aria-label="SkyFam Discord">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.1 18.08.11 18.1.128 18.11a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+          </a>
+        </nav>
       </header>
 
       <!-- Main social links section -->
       <section class="links" aria-label="Social links">
         <a class="link-btn" href="https://www.tiktok.com/@skylerclarkk" target="_blank" rel="noopener noreferrer">
-          <span class="link-btn__icon" aria-hidden="true">🎵</span>
+          <span class="link-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.16 8.16 0 0 0 4.77 1.52V6.76a4.83 4.83 0 0 1-1-.07z"/></svg>
+          </span>
           <span>TikTok</span>
         </a>
         <a class="link-btn" href="https://www.instagram.com/crashingskymusic?igsh=YWt4cnU1YjB5Znoz" target="_blank" rel="noopener noreferrer">
-          <span class="link-btn__icon" aria-hidden="true">📸</span>
+          <span class="link-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+          </span>
           <span>Instagram</span>
         </a>
         <a class="link-btn" href="https://www.tiktok.com/@crashingskymusic?_t=8lc09BhxoB0&amp;_r=1" target="_blank" rel="noopener noreferrer">
-          <span class="link-btn__icon" aria-hidden="true">✨</span>
+          <span class="link-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.16 8.16 0 0 0 4.77 1.52V6.76a4.83 4.83 0 0 1-1-.07z"/></svg>
+          </span>
           <span>Backup TikTok</span>
         </a>
         <a class="link-btn" href="https://www.facebook.com/profile.php?id=61557407113127&amp;mibextid=LQQJ4d" target="_blank" rel="noopener noreferrer">
-          <span class="link-btn__icon" aria-hidden="true">📘</span>
+          <span class="link-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          </span>
           <span>Facebook</span>
         </a>
-        <a class="link-btn" href="https://snapchat.com/t/qFQCZEwf" target="_blank" rel="noopener noreferrer">
-          <span class="link-btn__icon" aria-hidden="true">👻</span>
+        <a class="link-btn" href="https://snapchat.com/t/IdUhhVky" target="_blank" rel="noopener noreferrer">
+          <span class="link-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.299 4.847l-.003.06c-.012.18-.022.345-.03.51.075.045.203.09.401.09.3-.016.659-.12 1.033-.301.165-.088.344-.104.464-.104.182 0 .359.029.509.09.45.149.734.479.734.838.015.449-.39.839-1.213 1.168-.089.029-.209.075-.344.119-.45.135-1.139.36-1.333.81-.09.224-.061.524.12.868l.015.015c.06.136 1.526 3.475 4.791 4.014.255.044.435.27.42.509 0 .075-.015.149-.045.225-.24.569-1.273.988-3.146 1.271-.059.091-.12.375-.164.57-.029.179-.074.36-.134.553-.076.271-.27.405-.555.405h-.03c-.135 0-.313-.031-.538-.074-.36-.075-.765-.135-1.273-.135-.3 0-.599.015-.913.074-.6.104-1.123.464-1.723.884-.853.599-1.826 1.288-3.294 1.288-.06 0-.119-.015-.181-.015h-.16c-1.468 0-2.427-.675-3.279-1.288-.599-.42-1.107-.779-1.707-.884-.314-.045-.629-.074-.928-.074-.54 0-.958.089-1.272.149-.211.043-.391.074-.54.074-.374 0-.523-.224-.583-.42-.061-.192-.09-.389-.135-.567-.046-.181-.105-.494-.166-.57-1.918-.222-2.95-.642-3.189-1.226-.031-.063-.052-.15-.055-.225-.015-.243.165-.465.42-.509 3.264-.54 4.73-3.879 4.791-4.02l.016-.029c.18-.345.224-.645.119-.869-.195-.434-.884-.658-1.332-.809-.121-.029-.24-.074-.346-.119-1.107-.435-1.257-.93-1.197-1.273.09-.479.674-.793 1.168-.793.146 0 .27.029.383.074.42.194.789.3 1.104.3.234 0 .384-.06.465-.105l-.046-.569c-.098-1.626-.225-3.651.307-4.837C7.392 1.077 10.739.807 11.727.807l.48-.014z"/></svg>
+          </span>
           <span>Snapchat</span>
         </a>
         <a
@@ -59,59 +90,81 @@
           aria-label="X profile link coming soon"
           tabindex="-1"
         >
-          <span class="link-btn__icon" aria-hidden="true">𝕏</span>
+          <span class="link-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </span>
           <span>X (link coming soon)</span>
         </a>
         <a class="link-btn" href="https://www.xiaohongshu.com/user/profile/6785abfb0000000008019f69?xsec_token=YBXmdOeDU2pkVWB2cg_4qiKc2tSF7slbUNxBv0Dbr4urw=&amp;xsec_source=app_share&amp;xhsshare=CopyLink&amp;appuid=6785abfb0000000008019f69&amp;apptime=1736874335&amp;share_id=996f5c263dec43c3919267a32f4797b8" target="_blank" rel="noopener noreferrer">
-          <span class="link-btn__icon" aria-hidden="true">🧧</span>
+          <span class="link-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 0 18A9 9 0 0 0 12 3zm0 2a7 7 0 1 1 0 14A7 7 0 0 1 12 5zm-1 3v3H8v2h3v5h2v-5h3v-2h-3V8h-2z"/></svg>
+          </span>
           <span>RedNote</span>
         </a>
         <a class="link-btn" href="https://v.lemon8-app.com/s/OgQhcwyZwR" target="_blank" rel="noopener noreferrer">
-          <span class="link-btn__icon" aria-hidden="true">🍋</span>
+          <span class="link-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2.05V4.07a8.003 8.003 0 0 1 0 15.86v2.02c5.01-.5 9-4.76 9-9.95s-3.99-9.45-9-9.95zM11 2.05C5.95 2.55 2 6.81 2 12s3.95 9.45 9 9.95V19.93a6.994 6.994 0 0 1 0-15.86V2.05zM12 7l-5 5 5 5 1.41-1.41L10.83 13H17v-2h-6.17l2.58-2.59L12 7z"/></svg>
+          </span>
           <span>Lemon8</span>
         </a>
         <a class="link-btn" href="https://clapperapp.com/crashingskymusic?is_invite=1&amp;r=kPM9yzRDP9&amp;c=in&amp;m=co" target="_blank" rel="noopener noreferrer">
-          <span class="link-btn__icon" aria-hidden="true">👏</span>
+          <span class="link-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 3v2h-2V3H8v2H6V3H4v18h2v-2h2v2h8v-2h2v2h2V3h-2zM8 17H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm10 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zM3 1v22l3-2V3L3 1zm18 0l-3 2v18l3 2V1z"/></svg>
+          </span>
           <span>Clapper</span>
         </a>
         <a class="link-btn" href="https://discord.gg/f64WqrJf5" target="_blank" rel="noopener noreferrer">
-          <span class="link-btn__icon" aria-hidden="true">💬</span>
+          <span class="link-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.1 18.08.11 18.1.128 18.11a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+          </span>
           <span>SkyFam Discord</span>
         </a>
         <a class="link-btn" href="https://skyler-clark-merch.square.site/" target="_blank" rel="noopener noreferrer">
-          <span class="link-btn__icon" aria-hidden="true">🛍️</span>
+          <span class="link-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6h-2c0-2.76-2.24-5-5-5S7 3.24 7 6H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-7-3c1.66 0 3 1.34 3 3H9c0-1.66 1.34-3 3-3zm0 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+          </span>
           <span>Merch Store</span>
         </a>
       </section>
 
       <!-- Affiliate / extras section -->
       <section class="links links--secondary" aria-label="Affiliate and extras">
-        <h2 class="links__heading">Affiliate + Extras</h2>
+        <h2 class="links__heading">✨ Affiliate + Extras</h2>
         <a class="link-btn" href="https://www.amazon.com/shop/crashingskymusic?ref_=cm_sw_r_mwn_aipsfshop_aipsfcrashingskymusic_K0X8HKF4RW2WD3GYXK04" target="_blank" rel="noopener noreferrer">
-          <span class="link-btn__icon" aria-hidden="true">🛒</span>
+          <span class="link-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96C5 16.1 5.9 17 7 17h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63H19c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0 0 23.46 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+          </span>
           <span>Amazon Storefront</span>
         </a>
         <a class="link-btn" href="https://mix.crrnt.app/SkylerC10" target="_blank" rel="noopener noreferrer">
-          <span class="link-btn__icon" aria-hidden="true">💖</span>
+          <span class="link-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          </span>
           <span>Mixhers</span>
         </a>
         <a class="link-btn" href="https://community.hollisterco.com/s/skyler.c" target="_blank" rel="noopener noreferrer">
-          <span class="link-btn__icon" aria-hidden="true">🕊️</span>
+          <span class="link-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
+          </span>
           <span>Hollister</span>
         </a>
         <a class="link-btn" href="https://cash.app/$crashingskyy" target="_blank" rel="noopener noreferrer">
-          <span class="link-btn__icon" aria-hidden="true">💵</span>
+          <span class="link-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+          </span>
           <span>Cash App</span>
         </a>
         <a class="link-btn" href="https://venmo.com/code?user_id=3311506791858176171&amp;created=1659232309.22036&amp;printed=1" target="_blank" rel="noopener noreferrer">
-          <span class="link-btn__icon" aria-hidden="true">💙</span>
+          <span class="link-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.1 2c.5 1.3.7 2.7.7 4.5 0 4.7-4 10.7-7.2 14.9H5.4L2.5 2.7l6.3-.6 1.5 11.9c1.4-2.3 3.1-5.9 3.1-8.3 0-.9-.2-1.6-.5-2.2L19.1 2z"/></svg>
+          </span>
           <span>Venmo</span>
         </a>
       </section>
 
       <!-- PO Box display (not a button) -->
       <section class="pobox" aria-label="Mailing address">
-        <p><strong>PO Box:</strong> PO BOX 320143 Flint MI 48532</p>
+        <p>💌 <strong>PO Box:</strong> PO BOX 320143 Flint MI 48532</p>
       </section>
 
       <!-- Footer -->
