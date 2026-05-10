@@ -14,7 +14,7 @@
   --text-subtle: #8d678e;
   --shadow-plum: 0 8px 24px rgba(102, 57, 99, 0.24);
   --shadow-avatar: 0 10px 24px rgba(27, 18, 35, 0.34);
-  --name-overlay-top: 68%; /* Align title on lower third of avatar for readability */
+  --name-overlay-top: 68%; /* Align title near the lower-center of the avatar for readability */
   --name-overlay-color: #ffe8f4;
   --shadow-name-dark: rgba(21, 16, 29, 0.92);
   --shadow-name-highlight: rgba(255, 255, 255, 0.4);
