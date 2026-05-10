@@ -7,8 +7,9 @@
   --card-border: rgba(255, 255, 255, 0.92);
   --text-main: #3a2946;
   --text-subtle: #8d678e;
-  --shadow-pink: 0 8px 24px rgba(102, 57, 99, 0.24);
+  --shadow-plum: 0 8px 24px rgba(102, 57, 99, 0.24);
   --shadow-avatar: 0 10px 24px rgba(27, 18, 35, 0.34);
+  --name-overlay-top: 68%;
   --enter-duration: 280ms;
 }
 
@@ -75,7 +76,7 @@ body {
   line-height: 1.05;
   position: absolute;
   left: 50%;
-  top: 68%;
+  top: var(--name-overlay-top);
   transform: translate(-50%, -50%);
   z-index: 3;
   text-shadow: 0 3px 14px rgba(21, 16, 29, 0.92), 0 0 2px rgba(255, 255, 255, 0.4);
