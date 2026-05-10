@@ -14,7 +14,8 @@
   --text-subtle: #8d678e;
   --shadow-plum: 0 8px 24px rgba(102, 57, 99, 0.24);
   --shadow-avatar: 0 10px 24px rgba(27, 18, 35, 0.34);
-  --name-overlay-top: 68%; /* Align title near the lower-center of the avatar for readability */
+  --name-overlay-top: 68%; /* Centers title over the lower half of the circular avatar where face detail is lighter */
+  --name-overlay-size: 3rem;
   --name-overlay-color: #ffe8f4;
   --shadow-name-dark: rgba(21, 16, 29, 0.98);
   --shadow-name-highlight: rgba(255, 255, 255, 0.4);
@@ -85,7 +86,7 @@ body {
 .profile__name {
   font-family: "Fredoka One", "Nunito", cursive;
   font-weight: 400;
-  font-size: 2.9rem;
+  font-size: var(--name-overlay-size);
   color: var(--name-overlay-color);
   margin: 0;
   padding: 0 8px;
@@ -97,6 +98,9 @@ body {
   z-index: 3;
   text-shadow: 0 4px 18px var(--shadow-name-dark), 0 0 2px var(--shadow-name-highlight);
   letter-spacing: 0.01em;
+  background: rgba(21, 16, 29, 0.34);
+  border-radius: 999px;
+  backdrop-filter: blur(2px);
 }
 
 .profile__photo {
@@ -256,7 +260,7 @@ body {
   }
 
   .profile__name {
-    font-size: 3.2rem;
+    font-size: calc(var(--name-overlay-size) + 0.2rem);
   }
 
   .profile__photo {
