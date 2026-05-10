@@ -97,7 +97,6 @@ body {
   z-index: 3;
   text-shadow: 0 3px 14px var(--shadow-name-dark), 0 0 2px var(--shadow-name-highlight);
   letter-spacing: 0.01em;
-  pointer-events: none;
 }
 
 .profile__photo {
