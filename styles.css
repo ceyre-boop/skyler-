@@ -82,8 +82,9 @@ body {
   height: 148px;
   border-radius: 50%;
   object-fit: cover;
+  object-position: center 35%;
   border: 4px solid white;
-  box-shadow: var(--shadow-pink);
+  box-shadow: 0 8px 20px rgba(61, 48, 82, 0.2);
   margin: -30px auto 0;
   position: relative;
   z-index: 2;
