@@ -8,6 +8,7 @@
   --text-main: #3d3052;
   --text-subtle: #9b6899;
   --shadow-pink: 0 8px 24px rgba(232, 64, 122, 0.2);
+  --shadow-avatar: 0 8px 20px rgba(61, 48, 82, 0.2);
   --enter-duration: 280ms;
 }
 
@@ -84,7 +85,7 @@ body {
   object-fit: cover;
   object-position: center 35%;
   border: 4px solid white;
-  box-shadow: 0 8px 20px rgba(61, 48, 82, 0.2);
+  box-shadow: var(--shadow-avatar);
   margin: -30px auto 0;
   position: relative;
   z-index: 2;
