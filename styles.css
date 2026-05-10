@@ -87,7 +87,7 @@ body {
   height: 148px;
   border-radius: 50%;
   object-fit: cover;
-  object-position: center 35%;
+  object-position: center 18%;
   border: 3px solid rgba(255,255,255,0.2);
   box-shadow: var(--shadow-avatar);
 }
