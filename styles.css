@@ -3,13 +3,21 @@
   --pink: #d66da1;
   --pink-light: #f6d8e9;
   --lavender: #c5b7df;
+  --gradient-dark-1: #15101d;
+  --gradient-plum-1: #2a1f34;
+  --gradient-plum-2: #50324e;
+  --gradient-rose: #744c65;
+  --gradient-plum-3: #3c2947;
   --card: rgba(255, 255, 255, 0.82);
   --card-border: rgba(255, 255, 255, 0.92);
   --text-main: #3a2946;
   --text-subtle: #8d678e;
   --shadow-plum: 0 8px 24px rgba(102, 57, 99, 0.24);
   --shadow-avatar: 0 10px 24px rgba(27, 18, 35, 0.34);
-  --name-overlay-top: 68%;
+  --name-overlay-top: 68%; /* Align title on lower third of avatar for readability */
+  --name-overlay-color: #ffe8f4;
+  --shadow-name-dark: rgba(21, 16, 29, 0.92);
+  --shadow-name-highlight: rgba(255, 255, 255, 0.4);
   --enter-duration: 280ms;
 }
 
@@ -38,7 +46,15 @@ body {
   color: var(--text-main);
   background-image:
     radial-gradient(circle, rgba(255, 255, 255, 0.32) 0 3px, transparent 3px),
-    linear-gradient(140deg, #15101d, #2a1f34, #50324e, #744c65, #3c2947, #15101d);
+    linear-gradient(
+      140deg,
+      var(--gradient-dark-1),
+      var(--gradient-plum-1),
+      var(--gradient-plum-2),
+      var(--gradient-rose),
+      var(--gradient-plum-3),
+      var(--gradient-dark-1)
+    );
   background-size: 24px 24px, 420% 420%;
   background-position: 0 0, 0% 50%;
   animation: bgShift 18s ease infinite;
@@ -70,7 +86,7 @@ body {
   font-family: "Fredoka One", "Nunito", cursive;
   font-weight: 400;
   font-size: 2.7rem;
-  color: #ffe8f4;
+  color: var(--name-overlay-color);
   margin: 0;
   padding: 0 8px;
   line-height: 1.05;
@@ -79,7 +95,7 @@ body {
   top: var(--name-overlay-top);
   transform: translate(-50%, -50%);
   z-index: 3;
-  text-shadow: 0 3px 14px rgba(21, 16, 29, 0.92), 0 0 2px rgba(255, 255, 255, 0.4);
+  text-shadow: 0 3px 14px var(--shadow-name-dark), 0 0 2px var(--shadow-name-highlight);
   letter-spacing: 0.01em;
   pointer-events: none;
 }
