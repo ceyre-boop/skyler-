@@ -14,11 +14,13 @@
   --text-subtle: #8d678e;
   --shadow-plum: 0 8px 24px rgba(102, 57, 99, 0.24);
   --shadow-avatar: 0 10px 24px rgba(27, 18, 35, 0.34);
-  --name-overlay-top: 68%; /* Places title just below avatar midpoint to keep eyes/face less obstructed */
+  --name-overlay-top: 68%; /* Places title in the lower third to keep eyes/face less obstructed */
   --name-overlay-size: 3rem;
   --name-overlay-color: #ffe8f4;
   --shadow-name-dark: rgba(21, 16, 29, 0.98);
   --shadow-name-highlight: rgba(255, 255, 255, 0.4);
+  --name-overlay-radius: 999px;
+  --name-overlay-blur: 2px;
   --enter-duration: 280ms;
 }
 
@@ -99,8 +101,8 @@ body {
   text-shadow: 0 4px 18px var(--shadow-name-dark), 0 0 2px var(--shadow-name-highlight);
   letter-spacing: 0.01em;
   background: rgba(21, 16, 29, 0.34);
-  border-radius: 999px;
-  backdrop-filter: blur(2px);
+  border-radius: var(--name-overlay-radius);
+  backdrop-filter: blur(var(--name-overlay-blur));
 }
 
 .profile__photo {
