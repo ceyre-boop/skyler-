@@ -1,14 +1,27 @@
 /* Theme variables */
 :root {
-  --pink: #e8407a;
-  --pink-light: #ffd8ec;
-  --lavender: #dfd4ff;
+  --pink: #d66da1;
+  --pink-light: #f6d8e9;
+  --lavender: #c5b7df;
+  --gradient-dark-1: #15101d;
+  --gradient-plum-1: #2a1f34;
+  --gradient-plum-2: #50324e;
+  --gradient-rose: #744c65;
+  --gradient-plum-3: #3c2947;
   --card: rgba(255, 255, 255, 0.82);
   --card-border: rgba(255, 255, 255, 0.92);
-  --text-main: #3d3052;
-  --text-subtle: #9b6899;
-  --shadow-pink: 0 8px 24px rgba(232, 64, 122, 0.2);
-  --shadow-avatar: 0 8px 20px rgba(61, 48, 82, 0.2);
+  --text-main: #3a2946;
+  --text-subtle: #8d678e;
+  --shadow-plum: 0 8px 24px rgba(102, 57, 99, 0.24);
+  --shadow-avatar: 0 10px 24px rgba(27, 18, 35, 0.34);
+  --name-overlay-top: 68%; /* Places title in the lower portion to keep eyes/face less obstructed */
+  --name-overlay-size: 3rem;
+  --name-overlay-color: #ffe8f4;
+  --name-overlay-bg: rgba(21, 16, 29, 0.34);
+  --shadow-name-dark: rgba(21, 16, 29, 0.98);
+  --shadow-name-highlight: rgba(255, 255, 255, 0.4);
+  --name-overlay-radius: 999px;
+  --name-overlay-blur: 2px;
   --enter-duration: 280ms;
 }
 
@@ -37,10 +50,18 @@ body {
   color: var(--text-main);
   background-image:
     radial-gradient(circle, rgba(255, 255, 255, 0.32) 0 3px, transparent 3px),
-    linear-gradient(135deg, #ffd8ec, #fce4ff, #dfd4ff, #d4eeff, #ffe4f5, #ffd8ec);
-  background-size: 24px 24px, 500% 500%;
+    linear-gradient(
+      140deg,
+      var(--gradient-dark-1),
+      var(--gradient-plum-1),
+      var(--gradient-plum-2),
+      var(--gradient-rose),
+      var(--gradient-plum-3),
+      var(--gradient-dark-1)
+    );
+  background-size: 24px 24px, 420% 420%;
   background-position: 0 0, 0% 50%;
-  animation: bgShift 14s ease infinite;
+  animation: bgShift 18s ease infinite;
   display: flex;
   justify-content: center;
   padding: 24px 14px 36px;
@@ -61,20 +82,28 @@ body {
 .profile__hero {
   position: relative;
   text-align: center;
+  width: fit-content;
+  margin: 0 auto;
 }
 
 .profile__name {
   font-family: "Fredoka One", "Nunito", cursive;
   font-weight: 400;
-  font-size: 3.2rem;
-  color: var(--pink);
+  font-size: var(--name-overlay-size);
+  color: var(--name-overlay-color);
   margin: 0;
   padding: 0 8px;
   line-height: 1.05;
-  position: relative;
-  z-index: 1;
-  text-shadow: 3px 3px 0 rgba(232, 64, 122, 0.12);
+  position: absolute;
+  left: 50%;
+  top: var(--name-overlay-top);
+  transform: translateX(-50%);
+  z-index: 3;
+  text-shadow: 0 4px 18px var(--shadow-name-dark), 0 0 2px var(--shadow-name-highlight);
   letter-spacing: 0.01em;
+  background: var(--name-overlay-bg);
+  border-radius: var(--name-overlay-radius);
+  backdrop-filter: blur(var(--name-overlay-blur));
 }
 
 .profile__photo {
@@ -84,11 +113,11 @@ body {
   border-radius: 50%;
   object-fit: cover;
   object-position: center 35%;
-  border: 4px solid white;
+  border: 0;
   box-shadow: var(--shadow-avatar);
-  margin: -30px auto 0;
+  margin: 0 auto;
   position: relative;
-  z-index: 2;
+  z-index: 1;
 }
 
 .profile__bio {
@@ -234,7 +263,7 @@ body {
   }
 
   .profile__name {
-    font-size: 3.8rem;
+    font-size: calc(var(--name-overlay-size) + 0.2rem);
   }
 
   .profile__photo {
