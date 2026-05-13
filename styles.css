@@ -51,78 +51,28 @@ body {
   z-index: 1;
 }
 
-/* ── Profile hero: rocker sticker layout ── */
+/* ── Profile hero ── */
 .profile {
   text-align: center;
-  margin-bottom: 26px;
+  margin-bottom: 18px;
 }
 
 .profile__hero {
   text-align: center;
 }
 
-.profile__sticker {
-  position: relative;
-  display: inline-block;
+/* Full-width hero banner */
+.profile__banner {
   width: 100%;
-  padding: 20px 0 10px;
-}
-
-/* Giant name text behind photo */
-.profile__name-giant {
-  font-family: "Fredoka One", cursive;
-  font-weight: 400;
-  font-size: clamp(3.8rem, 18vw, 7rem);
-  line-height: 0.88;
-  color: transparent;
-  -webkit-text-stroke: 2px rgba(200, 30, 40, 0.7);
-  text-stroke: 2px rgba(200, 30, 40, 0.7);
-  letter-spacing: -0.02em;
-  text-transform: uppercase;
-  margin: 0;
-  transform: rotate(-3deg);
-  user-select: none;
-  position: relative;
-  z-index: 1;
-  text-shadow: 0 0 40px rgba(180, 20, 30, 0.5);
-}
-
-/* Dark smoke circle backdrop */
-.profile__disc {
-  width: 180px;
-  height: 180px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(60, 10, 10, 0.9) 0%, rgba(20, 5, 20, 0.85) 60%, transparent 100%);
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -38%);
-  z-index: 2;
-  box-shadow: 0 0 40px rgba(160, 20, 30, 0.4), inset 0 0 30px rgba(0,0,0,0.6);
-}
-
-/* Sticker photo — white outline cutout effect */
-.profile__photo {
+  max-width: 500px;
+  border-radius: 18px;
   display: block;
-  width: 162px;
-  height: 162px;
-  border-radius: 50%;
-  object-fit: cover;
-  object-position: center 42%;
-  border: 5px solid #fff;
-  box-shadow:
-    0 0 0 2px rgba(200, 30, 40, 0.5),
-    0 12px 40px rgba(0, 0, 0, 0.7),
-    0 0 30px rgba(180, 20, 30, 0.4);
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -38%);
-  z-index: 3;
+  margin: 0 auto;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 30px rgba(180,20,30,0.3);
 }
 
 .profile__bio {
-  margin: 100px 0 8px;
+  margin: 14px 0 8px;
   color: var(--text-subtle);
   font-size: 0.99rem;
   font-weight: 700;
@@ -265,8 +215,4 @@ body {
     padding-top: 38px;
   }
 
-  .profile__photo {
-    width: 180px;
-    height: 180px;
-  }
 }
