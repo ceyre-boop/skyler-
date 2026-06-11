@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-accent: #ec4899;
+  --color-accent-dim: #be185d;
+  --color-bg: #0b0a0f;
+  --color-card: #17151f;
+  --color-card-hover: #1f1c2a;
+  --color-line: #2a2738;
+  --color-ink: #f4f2f8;
+  --color-ink-dim: #9b95ad;
+}
+
+html {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif;
+  min-height: 100dvh;
+}
