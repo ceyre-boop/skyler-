@@ -44,7 +44,7 @@ export async function POST(
       videoPath,
       signedUrl: videoUrl,
       shareUrl: videoUrl,
-      videoSize: fileSize(videoPath),
+      videoSize: await fileSize(videoPath),
       config,
     });
 

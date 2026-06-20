@@ -1,26 +1,14 @@
 import { getIronSession, type IronSession } from "iron-session";
 import { cookies } from "next/headers";
 import { db } from "./db";
+import { sessionOptions, type SessionData } from "./session";
 import crypto from "crypto";
 
-export interface SessionData {
-  userId: string;
-  email: string;
-}
-
-const SESSION_OPTIONS = {
-  password: process.env.SESSION_SECRET!,
-  cookieName: "fable_session",
-  cookieOptions: {
-    secure: process.env.NODE_ENV === "production",
-    httpOnly: true,
-    maxAge: 60 * 60 * 24 * 30,
-  },
-};
+export type { SessionData } from "./session";
 
 export async function getSession(): Promise<IronSession<SessionData>> {
   const cookieStore = await cookies();
-  return getIronSession<SessionData>(cookieStore, SESSION_OPTIONS);
+  return getIronSession<SessionData>(cookieStore, sessionOptions);
 }
 
 export async function getUser(): Promise<SessionData | null> {

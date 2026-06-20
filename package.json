@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "cloudinary": "^2.10.0",
     "iron-session": "^8.0.4",
     "lucide-react": "^1.17.0",
     "mime-types": "^3.0.2",

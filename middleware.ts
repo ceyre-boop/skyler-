@@ -1,14 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getIronSession } from "iron-session";
-import type { SessionData } from "@/lib/auth";
+import { sessionOptions, type SessionData } from "@/lib/session";
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
-  const session = await getIronSession<SessionData>(request, response, {
-    password: process.env.SESSION_SECRET!,
-    cookieName: "fable_session",
-    cookieOptions: { secure: process.env.NODE_ENV === "production", httpOnly: true },
-  });
+  const session = await getIronSession<SessionData>(request, response, sessionOptions);
 
   const isLogin = request.nextUrl.pathname.startsWith("/login");
   const isApi = request.nextUrl.pathname.startsWith("/api/");

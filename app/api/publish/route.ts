@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
   const platforms = await db`select * from platforms where id = any(${platformIds})`;
   const videoUrl = fileUrl(videoPath);
-  const size = fileSize(videoPath);
+  const size = await fileSize(videoPath);
 
   await Promise.all(
     targets.map(async (target) => {

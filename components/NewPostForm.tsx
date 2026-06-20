@@ -78,11 +78,30 @@ export default function NewPostForm({
 
     try {
       setBusy("Uploading video…");
-      const form = new FormData();
-      form.append("file", video);
-      const upRes = await fetch("/api/upload", { method: "POST", body: form });
-      if (!upRes.ok) throw new Error("Upload failed");
-      const { path } = await upRes.json();
+      // 1. Get a short-lived signature from our server (API secret stays server-side).
+      const signRes = await fetch("/api/upload/sign");
+      if (!signRes.ok) {
+        const data = await signRes.json().catch(() => ({}));
+        throw new Error(data.error ?? "Upload failed");
+      }
+      const { cloudName, apiKey, timestamp, folder, signature } = await signRes.json();
+
+      // 2. Upload the file straight to Cloudinary (bypasses the serverless body limit).
+      const cloudForm = new FormData();
+      cloudForm.append("file", video);
+      cloudForm.append("api_key", apiKey);
+      cloudForm.append("timestamp", String(timestamp));
+      cloudForm.append("folder", folder);
+      cloudForm.append("signature", signature);
+      const upRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`,
+        { method: "POST", body: cloudForm }
+      );
+      if (!upRes.ok) {
+        const data = await upRes.json().catch(() => ({}));
+        throw new Error(data?.error?.message ?? "Cloudinary upload failed");
+      }
+      const { secure_url: path } = await upRes.json();
 
       setBusy("Publishing…");
       const res = await fetch("/api/publish", {
