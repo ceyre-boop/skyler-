@@ -1,14 +1,14 @@
 import { getIronSession, type IronSession } from "iron-session";
 import { cookies } from "next/headers";
 import { db } from "./db";
-import { sessionOptions, type SessionData } from "./session";
+import { getSessionOptions, type SessionData } from "./session";
 import crypto from "crypto";
 
 export type { SessionData } from "./session";
 
 export async function getSession(): Promise<IronSession<SessionData>> {
   const cookieStore = await cookies();
-  return getIronSession<SessionData>(cookieStore, sessionOptions);
+  return getIronSession<SessionData>(cookieStore, getSessionOptions());
 }
 
 export async function getUser(): Promise<SessionData | null> {
