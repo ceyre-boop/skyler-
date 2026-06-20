@@ -1,21 +1,15 @@
 import { NextResponse } from "next/server";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { fileUrl, fileSize } from "@/lib/storage";
 import { getAdapter } from "@/lib/platforms";
 
 export async function POST(request: Request) {
-  // Gate on the caller's session; do the work with the service client.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-  }
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
-  const body = await request.json();
-  const { videoPath, videoSize, title, contentType, platformIds, captions } = body as {
+  const { videoPath, title, contentType, platformIds, captions } = await request.json() as {
     videoPath: string;
-    videoSize: number;
     title: string;
     contentType: string;
     platformIds: string[];
@@ -26,72 +20,59 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   }
 
-  const db = createServiceClient();
+  const [post] = await db`
+    insert into posts (title, content_type, video_path)
+    values (${title}, ${contentType}, ${videoPath})
+    returning *
+  `;
 
-  const { data: post, error: postErr } = await db
-    .from("posts")
-    .insert({ title, content_type: contentType, video_path: videoPath })
-    .select()
-    .single();
-  if (postErr) {
-    return NextResponse.json({ error: postErr.message }, { status: 500 });
-  }
-
-  const { data: platforms } = await db
-    .from("platforms")
-    .select("*")
-    .in("id", platformIds);
-
-  const targets = platformIds.map((pid) => ({
+  const targetRows = platformIds.map((pid) => ({
     post_id: post.id,
     platform_id: pid,
     caption: captions[pid] ?? title,
   }));
-  const { data: inserted, error: targetErr } = await db
-    .from("post_targets")
-    .insert(targets)
-    .select();
-  if (targetErr) {
-    return NextResponse.json({ error: targetErr.message }, { status: 500 });
-  }
 
-  // Signed URLs: a short one for server-side downloads, a week-long one for
-  // links embedded in messages (oversized Discord attachments).
-  const [{ data: signed }, { data: share }] = await Promise.all([
-    db.storage.from("videos").createSignedUrl(videoPath, 60 * 10),
-    db.storage.from("videos").createSignedUrl(videoPath, 60 * 60 * 24 * 7),
-  ]);
+  const targets = await db`
+    insert into post_targets ${db(targetRows, "post_id", "platform_id", "caption")}
+    returning *
+  `;
 
-  // Fan out to every auto-capable platform now. Manual ones stay pending.
+  const platforms = await db`select * from platforms where id = any(${platformIds})`;
+  const videoUrl = fileUrl(videoPath);
+  const size = fileSize(videoPath);
+
   await Promise.all(
-    (inserted ?? []).map(async (target) => {
-      const platform = platforms?.find((p) => p.id === target.platform_id);
+    targets.map(async (target) => {
+      const platform = platforms.find((p) => p.id === target.platform_id);
       if (!platform || platform.kind === "manual") return;
 
-      const adapter = getAdapter(platform.id);
-      if (!adapter || !signed || !share) return;
+      const adapter = getAdapter(platform.id as string);
+      if (!adapter) return;
 
       const config = { ...(platform.config as Record<string, unknown>) };
       const result = await adapter.publish({
-        caption: target.caption,
+        caption: target.caption as string,
         videoPath,
-        signedUrl: signed.signedUrl,
-        shareUrl: share.signedUrl,
-        videoSize: videoSize ?? 0,
+        signedUrl: videoUrl,
+        shareUrl: videoUrl,
+        videoSize: size,
         config,
       });
 
-      // Adapters may rotate tokens into config (TikTok refresh) — persist.
-      await db.from("platforms").update({ config }).eq("id", platform.id);
+      if (
+        (config as Record<string, unknown>).tiktok_tokens !== (platform.config as Record<string, unknown>).tiktok_tokens ||
+        (config as Record<string, unknown>).meta_tokens !== (platform.config as Record<string, unknown>).meta_tokens
+      ) {
+        await db`update platforms set config = ${config as never} where id = ${platform.id}`;
+      }
 
-      await db
-        .from("post_targets")
-        .update(
-          result.ok
-            ? { status: "posted", posted_at: new Date().toISOString(), error: null }
-            : { status: "failed", error: result.error }
-        )
-        .eq("id", target.id);
+      await db`
+        update post_targets set
+          status = ${result.ok ? "posted" : "failed"},
+          posted_at = ${result.ok ? new Date().toISOString() : null},
+          error = ${result.ok ? null : (result as { ok: false; error: string }).error}
+        where id = ${target.id}
+      `;
     })
   );
 

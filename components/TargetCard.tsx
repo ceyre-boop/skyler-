@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CheckCircle2, XCircle, Clock, Share2, Copy, Check, RotateCcw } from "lucide-react";
 
 const PLATFORM_EMOJI: Record<string, string> = {
   tiktok: "🎵",
@@ -37,6 +38,14 @@ export default function TargetCard({
 
   const done = target.status === "posted" || target.status === "manual_done";
 
+  const StatusIcon = done ? CheckCircle2 : target.status === "failed" ? XCircle : Clock;
+  const statusColorClass = done
+    ? "text-green-400"
+    : target.status === "failed"
+      ? "text-red-400"
+      : "text-ink-dim";
+  const statusLabel = done ? "Done" : target.status === "failed" ? "Failed" : "To do";
+
   async function copyCaption() {
     await navigator.clipboard.writeText(target.caption);
     setCopied(true);
@@ -48,7 +57,6 @@ export default function TargetCard({
     setShareError(null);
     setBusy(true);
     try {
-      // Copy the caption first so it's on the clipboard inside the target app.
       await navigator.clipboard.writeText(target.caption).catch(() => {});
 
       const res = await fetch(videoUrl);
@@ -60,7 +68,6 @@ export default function TargetCard({
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file] });
       } else {
-        // Desktop fallback: download the file instead.
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
         a.download = file.name;
@@ -68,7 +75,6 @@ export default function TargetCard({
         URL.revokeObjectURL(a.href);
       }
     } catch (err) {
-      // User cancelling the share sheet is fine — anything else, surface it.
       if (!(err instanceof DOMException && err.name === "AbortError")) {
         setShareError(err instanceof Error ? err.message : String(err));
       }
@@ -104,9 +110,10 @@ export default function TargetCard({
       <div className="flex items-center gap-2">
         <span className="text-xl">{PLATFORM_EMOJI[target.platformId] ?? "🌐"}</span>
         <span className="flex-1 font-bold">{target.platformName}</span>
-        <span className="text-sm">
-          {done ? "✅ Done" : target.status === "failed" ? "❌ Failed" : "⏳ To do"}
-        </span>
+        <div className={`flex items-center gap-1.5 text-sm font-semibold ${statusColorClass}`}>
+          <StatusIcon className="h-4 w-4" />
+          <span>{statusLabel}</span>
+        </div>
       </div>
 
       {target.error && (
@@ -132,24 +139,27 @@ export default function TargetCard({
                 type="button"
                 disabled={busy}
                 onClick={shareVideo}
-                className="flex-1 rounded-xl bg-accent py-2.5 text-sm font-bold text-white active:bg-accent-dim disabled:opacity-50"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent py-2.5 text-sm font-bold text-white active:bg-accent-dim disabled:opacity-50"
               >
-                {busy ? "…" : "📤 Share video"}
+                <Share2 className="h-4 w-4" />
+                {busy ? "Sharing…" : "Share video"}
               </button>
               <button
                 type="button"
                 onClick={copyCaption}
-                className="flex-1 rounded-xl border border-line bg-bg py-2.5 text-sm font-bold active:bg-card-hover"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-bg py-2.5 text-sm font-bold active:bg-card-hover"
               >
-                {copied ? "✅ Copied!" : "📋 Copy caption"}
+                {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
+                {copied ? "Copied!" : "Copy caption"}
               </button>
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => action("mark_done")}
-                className="w-full rounded-xl border border-green-500/40 py-2.5 text-sm font-bold text-green-400 active:bg-green-500/10 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-green-500/40 py-2.5 text-sm font-bold text-green-400 active:bg-green-500/10 disabled:opacity-50"
               >
-                ✔ I posted it
+                <CheckCircle2 className="h-4 w-4" />
+                I posted it
               </button>
             </>
           ) : (
@@ -158,9 +168,10 @@ export default function TargetCard({
                 type="button"
                 disabled={busy}
                 onClick={() => action("retry")}
-                className="w-full rounded-xl bg-accent py-2.5 text-sm font-bold text-white active:bg-accent-dim disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-2.5 text-sm font-bold text-white active:bg-accent-dim disabled:opacity-50"
               >
-                {busy ? "Retrying…" : "🔁 Retry"}
+                <RotateCcw className="h-4 w-4" />
+                {busy ? "Retrying…" : "Retry"}
               </button>
             )
           )}

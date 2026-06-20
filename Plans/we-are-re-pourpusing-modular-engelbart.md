@@ -1,85 +1,230 @@
-# Fable — Cross-Posting App for Skyler (repurpose `skyler-` repo)
+# Fable — Multi-User + Netlify Deploy Plan
 
-## Context
+*Replaces prior plan. Two problems to solve.*
 
-This repo currently holds Skyler's static link-in-bio site (index.html/styles.css/script.js, deployed to GitHub Pages via `.github/workflows/deploy.yml`). We're repurposing it into **Fable**: a one-upload, multi-platform publishing app so Skyler can post one video with the right caption to TikTok, Instagram, Facebook, Snapchat, and Discord without redoing the work five times. Path chosen: **"Prep + push" hybrid** — auto-post where APIs allow today (Discord), native share-sheet handoff where they don't (Snapchat always; TikTok/IG/FB until API approvals land), with TikTok Content Posting API code built now and dormant behind env vars.
+---
 
-Decisions already made with Colin:
-- Link hub → **archived to a `linkhub` branch**, GitHub Pages keeps serving it from there. `main` becomes the Fable app.
-- Hosting: **single Next.js web service on Render** (no separate worker yet — Discord posting runs in an API route).
-- Scope: **P1 polished + TikTok integration code-complete** (dormant until TikTok app approval; unaudited TikTok apps can only post private/draft).
-- Data: **new Supabase project** (auth + Postgres + storage), set up via the Supabase MCP.
-- Primary user is Skyler **on her phone** → mobile-first PWA; Web Share API needs HTTPS (Render provides it).
+## First: The OAuth Credentials Misunderstanding (no code needed)
 
-Her real targets (pulled from the current site): TikTok `@skylerclarkk`, Instagram `@crashingskymusic`, Facebook profile `61557407113127`, Snapchat `snapchat.com/t/IdUhhVky`, Discord `discord.gg/f64WqrJf5` (SkyFam server).
+Your TikTok Client Key (`awn85l4e1s0xc11b`) and Client Secret are **NOT your personal TikTok credentials**. They identify your *developer app*, not your account. Here's how it works:
 
-## Step 0 — Archive the link hub (do first, nothing breaks)
+- You put Client Key + Secret in the server's env vars once — they never change
+- When Skyler (or any creator) clicks "Connect TikTok" → she sees TikTok's own login page → she logs in with HER account → TikTok gives your app an access token for HER account → that token is stored in the DB under her user row
+- When another creator connects, same flow — their own token, stored separately
+- Your Client Key/Secret work for every user who connects. One developer app = unlimited creators.
 
-1. `git branch linkhub && git push origin linkhub` — snapshot of the current site.
-2. On `linkhub`, edit `deploy.yml` trigger to `branches: [linkhub]` and push.
-3. On `main`, delete the old site files (`index.html`, `styles.css`, `script.js`, `hero.png`) and `deploy.yml`.
-4. **Manual/API step:** GitHub Pages environment protection may only allow `main` — update the `github-pages` environment branch rules to allow `linkhub` (via `gh api` or repo Settings → Environments).
-5. Verify the Pages URL still serves the link hub before touching anything else.
+**Same for Meta.** The App ID/Secret go in env vars once. Every creator who clicks "Connect Meta" connects their own Instagram/Facebook.
 
-## Stack
+**The credentials you shared are correct and go straight into `.env.local`:**
+```
+TIKTOK_CLIENT_KEY=awn85l4e1s0xc11b
+TIKTOK_CLIENT_SECRET=lURT7W1gqKAW4pYiLyUKDbcCHcyFxui5
+```
 
-Next.js 15 (App Router, TypeScript, Tailwind) · Supabase (auth, Postgres, storage) · Render web service · **bun everywhere** (PAI rule — no npm/npx). PWA manifest so Skyler adds it to her home screen.
+---
 
-## Data model (Supabase Postgres, RLS = authenticated only)
+## Problem 1: Database Has Zero User Isolation
 
-- `platforms` — id, name, kind (`api` | `webhook` | `manual`), enabled, config jsonb (Discord webhook URL; TikTok tokens later)
-- `caption_templates` — platform_id, content_type (`story` | `video` | `post`), template text + hashtag block (per-platform formatting, IG ≠ TikTok)
-- `posts` — id, video_path (storage), content_type, title, created_at
-- `post_targets` — post_id, platform_id, caption (rendered, editable), status (`pending` | `posted` | `manual_done` | `failed`), external_url, error, posted_at
+Every user currently shares one set of platform configs, one set of caption templates, and all posts are in a single global pile. If Skyler and another creator both used the app right now, connecting Skyler's TikTok would immediately affect the other creator's settings.
 
-Storage: private `videos` bucket, signed URLs. Auth: email+password, two accounts (Colin + Skyler), public signup disabled.
+### Fix: New DB migration + user-scoped queries
 
-## App pages & flow (mobile-first)
+**New file: `supabase/migrations/0002_multiuser.sql`**
 
-1. **`/login`** — Supabase auth.
-2. **`/` New Post** — pick/record video → tap Story / Video / Post → captions auto-fill per platform from templates, editable inline → **Publish**.
-3. **Publish** (API route): creates post + targets.
-   - **Discord (auto):** webhook post — attach the video file if under the webhook size limit (~10 MB default), otherwise post the caption + signed video URL. Status ✅/❌ recorded.
-   - **Manual targets (Snapchat; TikTok/IG/FB until APIs live):** per-platform card with **Copy caption** + **Share video** (Web Share API with files → native share sheet → she picks the app) + **Mark as posted**.
-4. **`/posts`** dashboard — per-platform ✅/❌/⏳ chips per post, retry failed Discord, mark-done for manual.
-5. **`/settings`** — platform toggles, Discord webhook URL, caption template editor (platform × type grid), "Connect TikTok" button (appears when TikTok env vars are set).
+```sql
+-- Per-user platform connections (replaces global platforms config)
+create table public.user_platforms (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  platform_id text not null references public.platforms(id),
+  kind text not null default 'manual' check (kind in ('api', 'webhook', 'manual')),
+  enabled boolean not null default true,
+  config jsonb not null default '{}',
+  unique (user_id, platform_id)
+);
 
-## Platform adapter layer (the A-slots-in-later architecture)
+-- Per-user caption templates (replaces global caption_templates)
+create table public.user_caption_templates (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  platform_id text not null references public.platforms(id),
+  content_type text not null check (content_type in ('story', 'video', 'post')),
+  template text not null default '',
+  unique (user_id, platform_id, content_type)
+);
 
-`lib/platforms/types.ts` — `PlatformAdapter { publish(target, video): Promise<PublishResult> }`
+-- Posts need a user owner
+alter table public.posts
+  add column user_id uuid references public.users(id) on delete cascade;
 
-- `discord.ts` — webhook publish (live in P1).
-- `tiktok.ts` — **code-complete, dormant**: OAuth 2 (Login Kit) connect flow + token refresh stored in `platforms.config`, Content Posting API direct-post via FILE_UPLOAD (chunked — avoids PULL_FROM_URL domain verification). Activated by `TIKTOK_CLIENT_KEY`/`TIKTOK_CLIENT_SECRET` env vars. Until TikTok audits the app it can only post as private/draft — documented in README.
-- `instagram.ts` / `facebook.ts` — stub files implementing the interface, throwing "pending Meta app review" (P3).
+-- Seed user_platforms + user_caption_templates for every existing user
+-- (copies current global state to each user so no one loses their config)
+insert into public.user_platforms (user_id, platform_id, kind, enabled, config)
+  select u.id, p.id, p.kind, p.enabled, p.config
+  from public.users u cross join public.platforms p
+  on conflict (user_id, platform_id) do nothing;
 
-## Deploy
+insert into public.user_caption_templates (user_id, platform_id, content_type, template)
+  select u.id, ct.platform_id, ct.content_type, ct.template
+  from public.users u cross join public.caption_templates ct
+  on conflict (user_id, platform_id, content_type) do nothing;
 
-`render.yaml` blueprint: one web service, Bun runtime, env vars `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` (last two optional). Use the `render-deploy` skill. Discord webhook URL lives in the DB (settings page), not env.
+-- Assign existing posts to the first user (best we can do for legacy data)
+update public.posts set user_id = (select id from public.users order by created_at limit 1)
+  where user_id is null;
 
-## Build order
+-- Now enforce not-null
+alter table public.posts alter column user_id set not null;
 
-1. Step 0 (archive link hub, verify Pages).
-2. Supabase project via MCP: schema migration, RLS, `videos` bucket, two auth users, seed `platforms` + default caption templates for all 5 platforms × 3 types.
-3. Next.js scaffold + auth + upload + new-post flow.
-4. Discord adapter + publish route + dashboard.
-5. Share-sheet handoff cards + PWA manifest.
-6. Settings page (templates, webhook, toggles).
-7. TikTok adapter + connect flow (dormant).
-8. `render.yaml` + deploy to Render.
-9. New README documenting the app + the TikTok/Meta approval runbook (what Colin must do on developers.tiktok.com and developers.facebook.com when ready).
+-- Index
+create index user_platforms_user_id_idx on public.user_platforms(user_id);
+create index user_caption_templates_user_id_idx on public.user_caption_templates(user_id);
+create index posts_user_id_idx on public.posts(user_id);
+```
 
-Forge (PAI rule: E3+ coding task) joins the EXECUTE phase for the Next.js build.
+**Files to update (route queries):**
+
+| File | Change |
+|------|--------|
+| `app/page.tsx` | Query `user_platforms` where `user_id = user.userId`; query `user_caption_templates` same |
+| `app/settings/page.tsx` | Same — query user-scoped tables |
+| `app/api/settings/route.ts` | Toggle/config → update `user_platforms where user_id=... and platform_id=...`; template → update `user_caption_templates where user_id=...` |
+| `app/api/publish/route.ts` | Add `user_id` to posts insert; query `user_platforms` not `platforms` |
+| `app/api/tiktok/callback/route.ts` | Write to `user_platforms` not `platforms` |
+| `app/api/tiktok/disconnect/route.ts` | Update `user_platforms` filtered by user_id |
+| `app/api/meta/callback/route.ts` | Write to `user_platforms` not `platforms` |
+| `app/api/meta/disconnect/route.ts` | Update `user_platforms` filtered by user_id |
+| `app/posts/page.tsx` | Query posts where `user_id = user.userId` |
+| `app/api/targets/[id]/route.ts` | Verify the target's post belongs to the user |
+
+Pattern for all queries — replace:
+```ts
+db`select * from platforms where id = any(${ids})`
+```
+With:
+```ts
+db`select * from user_platforms where user_id = ${user.userId} and platform_id = any(${ids})`
+```
+
+---
+
+## Problem 2: Local Disk Storage Doesn't Work on Netlify
+
+Netlify runs serverless functions — no persistent disk. Every deploy wipes the filesystem. Videos would vanish. Fix: **Cloudinary**.
+
+### Why Cloudinary
+- Free tier: 25GB storage, 25GB/month bandwidth — plenty for one creator
+- Handles video natively (no transcoding needed for social posting)
+- Supports direct browser uploads (no large video passing through Netlify function)
+- Returns a public URL — all three platforms (TikTok, Instagram, Facebook) can pull from it directly, so adapters never need to download video bytes
+
+### New upload architecture
+
+**Old flow:** browser → POST /api/upload (video bytes) → saved to ./uploads → path in DB
+
+**New flow:** browser → GET /api/upload-signature (tiny, just crypto) → browser uploads directly to Cloudinary → Cloudinary returns public URL → URL stored in DB as `video_path`
+
+**Adapter change:** instead of `readUpload(videoPath)` + binary upload, pass the Cloudinary URL directly to each platform:
+- TikTok: `source: "PULL_FROM_URL", video_url: cloudinaryUrl`
+- Instagram: `video_url: cloudinaryUrl` in container init (no resumable upload needed)
+- Facebook: `file_url: cloudinaryUrl` in the videos endpoint
+
+This eliminates all the chunked upload complexity from the adapters.
+
+### New files
+
+**`lib/cloudinary.ts`** — server-side helpers:
+- `cloudinaryEnabled(): boolean` — checks env vars
+- `generateUploadSignature(folder: string): { signature, timestamp, apiKey, cloudName, uploadPreset? }` — signs a direct upload
+- `deleteVideo(publicId: string): Promise<void>` — cleanup (optional)
+
+**`app/api/upload-signature/route.ts`** — GET handler:
+- Auth check
+- Calls `generateUploadSignature("fable")`
+- Returns `{ signature, timestamp, apiKey, cloudName, folder }`
+
+**Remove:** `app/api/upload/route.ts` — replaced by Cloudinary direct upload
+**Remove:** `app/api/files/[filename]/route.ts` — no longer needed (Cloudinary URLs are public)
+**Remove:** `lib/storage.ts` — no longer needed
+
+### Files to update
+
+| File | Change |
+|------|--------|
+| `components/NewPostForm.tsx` | On video select, upload directly to Cloudinary using signature from `/api/upload-signature`; use returned URL as `videoPath` |
+| `lib/platforms/tiktok.ts` | Replace FILE_UPLOAD chunked flow with PULL_FROM_URL using `input.videoPath` (the Cloudinary URL) |
+| `lib/platforms/instagram.ts` | Replace resumable binary upload with `video_url: input.videoPath` in container init |
+| `lib/platforms/facebook.ts` | Replace multipart bytes with `file_url: input.videoPath` |
+| `lib/platforms/discord.ts` | Already posts URLs; just use `input.videoPath` directly |
+| `app/api/publish/route.ts` | Remove `fileUrl()` and `fileSize()` calls — not needed |
+| `.env.example` | Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET |
+
+### New env vars (Colin adds these)
+Sign up at cloudinary.com (free) → Dashboard shows these three values:
+```
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+```
+
+---
+
+## Problem 3: Deploy to Netlify
+
+**New file: `netlify.toml`**
+```toml
+[build]
+  command = "bun install && bun run build"
+  publish = ".next"
+
+[build.environment]
+  NEXT_USE_NETLIFY_EDGE = "true"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+```
+
+**New dependency:** `bun add -d @netlify/plugin-nextjs`
+
+**Netlify dashboard env vars to add:**
+```
+DATABASE_URL
+SESSION_SECRET
+TIKTOK_CLIENT_KEY=awn85l4e1s0xc11b
+TIKTOK_CLIENT_SECRET=lURT7W1gqKAW4pYiLyUKDbcCHcyFxui5
+META_APP_ID
+META_APP_SECRET
+CLOUDINARY_CLOUD_NAME
+CLOUDINARY_API_KEY
+CLOUDINARY_API_SECRET
+```
+
+TikTok redirect URI to add in developers.tiktok.com → your app → Login Kit:
+`https://YOUR_NETLIFY_DOMAIN/api/tiktok/callback`
+
+Meta redirect URI to add in developers.facebook.com → your app → Facebook Login → Valid OAuth Redirect URIs:
+`https://YOUR_NETLIFY_DOMAIN/api/meta/callback`
+
+---
+
+## Execution Order
+
+1. Run the DB migration against Neon (Neon SQL editor or `psql`)
+2. Update all DB-touching routes and pages to use `user_platforms` / `user_caption_templates`
+3. Sign up for Cloudinary, add env vars to `.env.local`
+4. Replace upload flow (signature route + NewPostForm change)
+5. Simplify all four adapters to use URL-based posting
+6. Create `netlify.toml`, install `@netlify/plugin-nextjs`
+7. Push to GitHub → connect to Netlify → add env vars → deploy
+
+---
 
 ## Verification
 
-- `bun run build` clean; schema applied (query Supabase via MCP).
-- **Interceptor** (mandatory per PAI rules) on localhost: login → upload a small test video → pick "Video" → captions render per platform → Publish → Discord message lands in a **test channel** (not SkyFam) → dashboard shows ✅.
-- Failed-webhook path: bogus webhook URL → ❌ + retry works.
-- Deploy to Render → Interceptor on the live URL; then real-phone check: add to home screen, Share-video opens the iOS share sheet with the file (this only works on HTTPS + real device — Colin confirms on Skyler's or his phone).
-- Old Pages URL still serves the link hub.
-
-## Explicit non-goals (this build)
-
-- Meta/IG/FB live posting (P3 — needs Creator account conversion + Meta app review, weeks).
-- Snapchat automation (no public API — share sheet is the permanent answer).
-- Scheduling + analytics pull-back (P4).
+- `bunx tsc --noEmit` → 0 errors
+- `bunx next build` → passes
+- Log in as two different users → Settings shows independent platform connections
+- Upload a video → Cloudinary URL appears in DB (not a local path)
+- Publish to Discord → video posts
+- Connect TikTok (once credentials are set) → posts to TikTok draft
+- Connect Meta (once credentials are set) → posts to Instagram/Facebook

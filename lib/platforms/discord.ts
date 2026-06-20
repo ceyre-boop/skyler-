@@ -1,4 +1,5 @@
 import type { PlatformAdapter, PublishInput, PublishResult } from "./types";
+import { readUpload } from "@/lib/storage";
 
 // Discord webhooks accept file attachments up to 10 MB on non-boosted servers.
 // Leave headroom for the multipart envelope.
@@ -20,11 +21,8 @@ export const discord: PlatformAdapter = {
       let res: Response;
 
       if (input.videoSize <= MAX_ATTACH_BYTES) {
-        const videoRes = await fetch(input.signedUrl);
-        if (!videoRes.ok) {
-          return { ok: false, error: `Could not download video (${videoRes.status})` };
-        }
-        const blob = await videoRes.blob();
+        const video = await readUpload(input.videoPath);
+        const blob = new Blob([new Uint8Array(video)], { type: "video/mp4" });
 
         const form = new FormData();
         form.append(

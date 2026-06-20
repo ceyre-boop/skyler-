@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getUser } from "@/lib/auth";
-import { buildAuthUrl, tiktokEnabled } from "@/lib/platforms/tiktok";
+import { buildMetaAuthUrl, metaEnabled } from "@/lib/meta";
 
-// Starts the TikTok OAuth flow. Dormant until TIKTOK_CLIENT_KEY/SECRET exist.
 export async function GET(request: Request) {
   const fail = (msg: string) =>
     NextResponse.redirect(
-      new URL(`/settings?tiktok_error=${encodeURIComponent(msg)}`, request.url)
+      new URL(`/settings?meta_error=${encodeURIComponent(msg)}`, request.url)
     );
 
   try {
@@ -15,24 +14,24 @@ export async function GET(request: Request) {
     if (!user) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
-    if (!tiktokEnabled()) {
+    if (!metaEnabled()) {
       return NextResponse.json(
-        { error: "TikTok API keys not configured" },
+        { error: "Meta API keys not configured" },
         { status: 400 }
       );
     }
 
     const state = crypto.randomUUID();
     const cookieStore = await cookies();
-    cookieStore.set("tiktok_oauth_state", state, {
+    cookieStore.set("meta_oauth_state", state, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       maxAge: 600,
       path: "/",
     });
 
-    const redirectUri = new URL("/api/tiktok/callback", request.url).toString();
-    return NextResponse.redirect(buildAuthUrl(redirectUri, state));
+    const redirectUri = new URL("/api/meta/callback", request.url).toString();
+    return NextResponse.redirect(buildMetaAuthUrl(redirectUri, state));
   } catch (err) {
     return fail(err instanceof Error ? err.message : String(err));
   }

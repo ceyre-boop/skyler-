@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { Upload, Film } from "lucide-react";
 import { CONTENT_TYPES, renderCaption, type ContentType } from "@/lib/captions";
 
 interface Platform {
@@ -78,13 +78,11 @@ export default function NewPostForm({
 
     try {
       setBusy("Uploading video…");
-      const supabase = createClient();
-      const ext = video.name.split(".").pop() || "mp4";
-      const path = `${crypto.randomUUID()}/video.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("videos")
-        .upload(path, video, { contentType: video.type || "video/mp4" });
-      if (upErr) throw new Error(`Upload failed: ${upErr.message}`);
+      const form = new FormData();
+      form.append("file", video);
+      const upRes = await fetch("/api/upload", { method: "POST", body: form });
+      if (!upRes.ok) throw new Error("Upload failed");
+      const { path } = await upRes.json();
 
       setBusy("Publishing…");
       const res = await fetch("/api/publish", {
@@ -92,7 +90,6 @@ export default function NewPostForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           videoPath: path,
-          videoSize: video.size,
           title: title.trim(),
           contentType,
           platformIds: [...selected],
@@ -123,13 +120,13 @@ export default function NewPostForm({
       <button
         type="button"
         onClick={() => fileInput.current?.click()}
-        className={`flex h-40 flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed text-center ${
+        className={`flex h-40 flex-col items-center justify-center gap-2 rounded-3xl border-2 text-center transition-colors ${
           video ? "border-accent bg-accent/10" : "border-line bg-card"
         }`}
       >
         {video ? (
           <>
-            <span className="text-3xl">🎬</span>
+            <Film className="h-8 w-8 text-accent" />
             <span className="max-w-[80%] truncate px-2 font-semibold">{video.name}</span>
             <span className="text-xs text-ink-dim">
               {(video.size / 1024 / 1024).toFixed(1)} MB — tap to change
@@ -137,7 +134,7 @@ export default function NewPostForm({
           </>
         ) : (
           <>
-            <span className="text-3xl">⬆️</span>
+            <Upload className="h-8 w-8 text-ink-dim" />
             <span className="font-semibold">Tap to pick your video</span>
             <span className="text-xs text-ink-dim">straight from your camera roll</span>
           </>
@@ -160,7 +157,7 @@ export default function NewPostForm({
             key={t.id}
             type="button"
             onClick={() => setContentType(t.id)}
-            className={`rounded-2xl border py-3 text-sm font-bold ${
+            className={`rounded-2xl border py-3 text-sm font-black transition-colors ${
               contentType === t.id
                 ? "border-accent bg-accent/15 text-accent"
                 : "border-line bg-card text-ink-dim"
@@ -181,8 +178,8 @@ export default function NewPostForm({
           return (
             <div
               key={p.id}
-              className={`rounded-2xl border ${
-                on ? "border-accent/40 bg-card" : "border-line bg-card/50 opacity-60"
+              className={`rounded-2xl border transition-colors ${
+                on ? "border-accent bg-card" : "border-line bg-card/50 opacity-60"
               }`}
             >
               <div className="flex items-center gap-3 px-4 py-3">

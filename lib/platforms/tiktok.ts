@@ -1,4 +1,5 @@
 import type { PlatformAdapter, PublishInput, PublishResult } from "./types";
+import { readUpload } from "@/lib/storage";
 
 /**
  * TikTok Content Posting API adapter — code-complete but dormant until
@@ -113,11 +114,7 @@ export const tiktok: PlatformAdapter = {
         (input.config as Record<string, unknown>).tiktok_tokens = access;
       }
 
-      const videoRes = await fetch(input.signedUrl);
-      if (!videoRes.ok) {
-        return { ok: false, error: `Could not download video (${videoRes.status})` };
-      }
-      const video = new Uint8Array(await videoRes.arrayBuffer());
+      const video = await readUpload(input.videoPath);
       const size = video.byteLength;
 
       const singleChunk = size <= SINGLE_CHUNK_MAX;
