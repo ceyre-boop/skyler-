@@ -21,8 +21,8 @@ export async function POST(request: Request) {
   }
 
   const [post] = await db`
-    insert into posts (title, content_type, video_path)
-    values (${title}, ${contentType}, ${videoPath})
+    insert into posts (user_id, title, content_type, video_path)
+    values (${user.userId}, ${title}, ${contentType}, ${videoPath})
     returning *
   `;
 
@@ -37,7 +37,10 @@ export async function POST(request: Request) {
     returning *
   `;
 
-  const platforms = await db`select * from platforms where id = any(${platformIds})`;
+  const platforms = await db`
+    select platform_id as id, kind, config from user_platforms
+    where user_id = ${user.userId} and platform_id = any(${platformIds})
+  `;
   const videoUrl = fileUrl(videoPath);
   const size = await fileSize(videoPath);
 
@@ -63,7 +66,10 @@ export async function POST(request: Request) {
         (config as Record<string, unknown>).tiktok_tokens !== (platform.config as Record<string, unknown>).tiktok_tokens ||
         (config as Record<string, unknown>).meta_tokens !== (platform.config as Record<string, unknown>).meta_tokens
       ) {
-        await db`update platforms set config = ${config as never} where id = ${platform.id}`;
+        await db`
+          update user_platforms set config = ${config as never}
+          where user_id = ${user.userId} and platform_id = ${platform.id}
+        `;
       }
 
       await db`

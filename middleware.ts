@@ -6,15 +6,16 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
   const session = await getIronSession<SessionData>(request, response, getSessionOptions());
 
-  const isLogin = request.nextUrl.pathname.startsWith("/login");
-  const isApi = request.nextUrl.pathname.startsWith("/api/");
+  const { pathname } = request.nextUrl;
+  const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup");
+  const isApi = pathname.startsWith("/api/");
 
-  if (!session.userId && !isLogin && !isApi) {
+  if (!session.userId && !isAuthPage && !isApi) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
-  if (session.userId && isLogin) {
+  if (session.userId && isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);

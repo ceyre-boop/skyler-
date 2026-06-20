@@ -2,12 +2,18 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-async function disconnectPlatform(platformId: string) {
-  const [platform] = await db`select config from platforms where id = ${platformId}`;
-  const current = (platform?.config as Record<string, unknown>) ?? {};
+async function disconnectPlatform(userId: string, platformId: string) {
+  const [row] = await db`
+    select config from user_platforms
+    where user_id = ${userId} and platform_id = ${platformId}
+  `;
+  const current = (row?.config as Record<string, unknown>) ?? {};
   const rest = { ...current };
   delete rest.meta_tokens;
-  await db`update platforms set kind = ${"manual"}, config = ${rest as never} where id = ${platformId}`;
+  await db`
+    update user_platforms set kind = ${"manual"}, config = ${rest as never}
+    where user_id = ${userId} and platform_id = ${platformId}
+  `;
 }
 
 export async function GET(request: Request) {
@@ -22,8 +28,8 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
-    await disconnectPlatform("instagram");
-    await disconnectPlatform("facebook");
+    await disconnectPlatform(user.userId, "instagram");
+    await disconnectPlatform(user.userId, "facebook");
 
     return NextResponse.redirect(new URL("/settings", request.url));
   } catch (err) {

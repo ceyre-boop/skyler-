@@ -15,11 +15,11 @@ export async function POST(
   const { action } = (await request.json()) as { action: "mark_done" | "retry" };
 
   const targets = await db`
-    select pt.*, p.video_path, pl.kind, pl.config, pl.id as platform_id_col
+    select pt.*, p.video_path, up.kind, up.config, up.platform_id as platform_id_col
     from post_targets pt
     join posts p on p.id = pt.post_id
-    join platforms pl on pl.id = pt.platform_id
-    where pt.id = ${id}
+    join user_platforms up on up.platform_id = pt.platform_id and up.user_id = p.user_id
+    where pt.id = ${id} and p.user_id = ${user.userId}
     limit 1
   `;
   if (!targets.length) return NextResponse.json({ error: "Not found" }, { status: 404 });

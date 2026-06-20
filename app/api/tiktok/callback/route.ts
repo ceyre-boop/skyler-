@@ -31,10 +31,18 @@ export async function GET(request: Request) {
     const redirectUri = new URL("/api/tiktok/callback", request.url).toString();
     const tokens = await exchangeCode(code, redirectUri);
 
-    const [platform] = await db`select config from platforms where id = ${"tiktok"}`;
-    const currentConfig = (platform?.config as Record<string, unknown>) ?? {};
+    const [row] = await db`
+      select config from user_platforms
+      where user_id = ${user.userId} and platform_id = ${"tiktok"}
+    `;
+    const currentConfig = (row?.config as Record<string, unknown>) ?? {};
     const mergedConfig = { ...currentConfig, tiktok_tokens: tokens };
-    await db`update platforms set kind = ${"api"}, config = ${mergedConfig as never} where id = ${"tiktok"}`;
+    await db`
+      insert into user_platforms (user_id, platform_id, kind, enabled, config)
+      values (${user.userId}, ${"tiktok"}, ${"api"}, ${true}, ${mergedConfig as never})
+      on conflict (user_id, platform_id)
+      do update set kind = ${"api"}, config = ${mergedConfig as never}
+    `;
 
     return NextResponse.redirect(new URL("/settings", request.url));
   } catch (err) {

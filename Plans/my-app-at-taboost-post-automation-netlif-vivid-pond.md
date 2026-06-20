@@ -1,96 +1,93 @@
-# Cloudinary storage (signed direct upload) + fix iron-session "Missing password"
+# Self-serve signup + per-member account connections
 
 ## Context
 
-Phase 1 (remove Supabase → Neon + iron-session) **already shipped** (commit `0f56f35`).
-Two things remain to make the live app fully work:
+New members can't get in — login fails with "Invalid email or password" because **there
+is no signup flow at all** (`lib/auth.ts` has `signIn` but no `signUp`; no `/signup` page;
+no `/api/auth/register`). The only accounts are 3 seeded rows with unknown passwords.
 
-1. **Active blocker:** the deployed app now throws **`iron-session: Bad usage. Missing
-   password`**. `middleware.ts` and `lib/auth.ts` build the session with
-   `password: process.env.SESSION_SECRET!`. Locally `.env.local` has it (dev renders
-   fine), so this is **`SESSION_SECRET` not set in the Netlify runtime**. Middleware runs
-   on every request, so the whole site fails. Fix = set the env var + harden the code so
-   the error is never cryptic again.
-2. **Media storage** is stubbed (`lib/storage.ts` = local fs → 501 on Netlify). Wire it to
-   **Cloudinary** so video upload + publish work. Decision: **signed direct browser→Cloudinary
-   upload** (Netlify functions cap bodies at ~6 MB; real Reels/Stories are larger).
+Goal: (1) anyone can **sign up** with email + password and land in the app, and (2) each
+member connects **their own** TikTok / Instagram / Facebook / Discord and posts only to
+those. Decision (confirmed): **per-member accounts** + **email/password signup** (upgrade
+hashing from weak sha256 → salted scrypt, Node built-in, no new dependency).
 
-## How storage is consumed (the contract to preserve)
+**Key finding:** the `0002_multiuser` migration already created the right tables
+(`user_platforms`, `user_caption_templates`, `posts.user_id`) — but **no code uses them yet**.
+The whole app still reads/writes the global `platforms.config` / `caption_templates`. So
+Part 2 is wiring the existing schema through the app, not designing new data.
 
-- `saveUpload(name, buf)` → path stored as `posts.video_path` (set in `app/api/upload`, value
-  flows from `components/NewPostForm.tsx` → `app/api/publish/route.ts`).
-- `fileUrl(path)` → URL used for the `<video>` preview (`app/posts/[id]/page.tsx`) and Discord
-  share link / adapter `signedUrl`+`shareUrl` (`app/api/publish/route.ts`).
-- `readUpload(path)` → **Buffer**, used by all four adapters (`lib/platforms/{tiktok,discord,
-  instagram,facebook}.ts`) which upload raw bytes (FILE_UPLOAD / resumable / attachment) — **none
-  use pull-from-URL**, so no TikTok/Meta domain verification is needed.
-- `fileSize(path)` → number; gates Discord attach-vs-link in `app/api/publish/route.ts` (currently sync).
+## Part 1 — Email/password signup
 
-## Part A — Fix iron-session "Missing password"
+- **`lib/auth.ts`**: add `signUp(email, password)` → insert into `users` with a salted
+  **scrypt** hash, seed the new user's `user_platforms` + `user_caption_templates` from the
+  global `platforms`/`caption_templates` (cross join, in one transaction), then create the
+  session. Replace `hashPassword` with scrypt (`crypto.scryptSync`, format
+  `scrypt$<saltHex>$<hashHex>`). `signIn` verifies scrypt **and** falls back to legacy sha256
+  so the existing rows still work.
+- **`app/api/auth/register/route.ts`** (new): POST → validate email/password (length ≥ 8),
+  `409` if email taken, else `signUp` and return ok.
+- **`app/signup/page.tsx`** (new): client form mirroring `app/login/page.tsx` → POST
+  `/api/auth/register` → on success `router.replace("/settings")` (land them where they connect
+  accounts). Show inline errors.
+- **`app/login/page.tsx`**: add a "Create an account →" link to `/signup`.
+- **`middleware.ts`**: allow `/signup` unauthenticated (today only `/login` + `/api/` are public);
+  add `/signup` to the public check and keep the signed-in→`/` redirect.
 
-**A1 (required, env, your action):** In Netlify → Site settings → Environment variables, set
-`SESSION_SECRET` to a 32+ char value (`openssl rand -hex 32`) for all contexts, then redeploy.
-This alone clears the current error.
+## Part 2 — Per-member connections (global → `user_platforms`)
 
-**A2 (code hardening):** Create edge-safe `lib/session.ts` (NO `next/headers`/node imports) that
-exports the shared `sessionOptions` (`cookieName: "fable_session"`, `cookieOptions`, `password`)
-and **throws a clear `"SESSION_SECRET is not set"`** if the env var is missing. Refactor
-`middleware.ts` and `lib/auth.ts` to import it (removes today's duplicated config). Keeps
-middleware Edge-compatible; turns the cryptic failure into an obvious one.
+**The pattern (applies everywhere):** replace global `platforms` `config`/`enabled`,
+`caption_templates`, and unscoped `posts`/`post_targets` access with rows scoped to
+`user.id` via `user_platforms` / `user_caption_templates` / `posts.user_id`. The session user
+comes from `getUser()` (already called in every one of these handlers).
 
-## Part B — Cloudinary signed direct upload
+Representative files and what changes:
+- **`app/settings/page.tsx`** + **`app/page.tsx`** (New Post): read `user_platforms up join
+  platforms p on p.id = up.platform_id where up.user_id = ${user.id}` (name/sort/emoji from
+  `platforms`, `enabled`/`kind`/`config` from `user_platforms`); read `user_caption_templates`
+  for the user. Derive tiktok/meta "connected" from the user's row config.
+- **`app/api/settings/route.ts`** (PATCH): `toggle`/`config` → `update user_platforms ... where
+  user_id = ${user.id} and platform_id = ...`; `template` → `update user_caption_templates ...
+  where id = ${templateId} and user_id = ${user.id}` (ownership-checked).
+- **OAuth callbacks** store tokens per user: **`app/api/tiktok/callback`** and
+  **`app/api/meta/callback`** write tokens into `user_platforms` for `(user.id, platform_id)`
+  (upsert, set `kind='api'`) instead of the global `platforms` row. **`tiktok/disconnect`** and
+  **`meta/disconnect`** clear the user's row. `connect` routes are unchanged (already per-session).
+- **`app/api/publish/route.ts`**: set `posts.user_id = ${user.id}`; read the user's
+  `user_platforms` for the selected `platformIds`; use per-user tokens; write refreshed tokens
+  back to `user_platforms`.
+- **`app/api/targets/[id]/route.ts`**: join `posts` to enforce `posts.user_id = ${user.id}`;
+  read/write config from `user_platforms`.
+- **`app/posts/page.tsx`** + **`app/posts/[id]/page.tsx`**: add `where p.user_id = ${user.id}`
+  so members see only their own posts.
 
-**B1.** `bun add cloudinary` (server-side: signing + delivery-URL helpers).
+`components/SettingsForm.tsx` / `NewPostForm.tsx` stay structurally the same — they render
+whatever rows the page passes; only the data source moves to per-user.
 
-**B2.** New `app/api/upload/sign/route.ts` (replaces `app/api/upload/route.ts`):
-- Authed via `getUser()`. If `CLOUDINARY_*` unset → 501 `"Media storage is not configured."`.
-- Returns `{ cloudName, apiKey, timestamp, folder, signature }` where
-  `signature = cloudinary.utils.api_sign_request({ timestamp, folder }, api_secret)`.
-- Keep signed params minimal (`timestamp`, `folder: "fable"`) so the browser signature matches.
+## Migration & seeding
 
-**B3.** Rewrite `lib/storage.ts` to be Cloudinary-backed (store the full `secure_url` as `video_path`):
-- `fileUrl(p)` → if `p` starts with `http` return as-is, else `cloudinary.url(p,{resource_type:"video",secure:true})`.
-- `readUpload(p)` → `fetch(fileUrl(p))` → `Buffer.from(arrayBuffer())`; throw if not ok.
-- `fileSize(p)` → **async**; `HEAD fileUrl(p)` → `content-length` number (fallback 0).
-- Drop `saveUpload` (direct upload replaces it). `configured()` helper for the 501 guard.
+- **`scripts/migrate.ts`**: run all migrations in order (`0001_neon.sql`, `0002_multiuser.sql`)
+  instead of only `0001`. (Apply `0002` to Neon if not already applied — it's idempotent
+  `create table if not exists`.)
+- New signups get their `user_platforms` / `user_caption_templates` seeded in `signUp` (above),
+  so they appear in Settings immediately with Connect buttons and nothing connected.
 
-**B4.** `app/api/publish/route.ts`: change `const size = fileSize(videoPath)` → `await fileSize(videoPath)`.
+## Deploy / env note (still outstanding from before)
 
-**B5.** `components/NewPostForm.tsx` `publish()` upload step:
-- `GET /api/upload/sign` → params. Build FormData (`file, api_key, timestamp, signature, folder`),
-  `POST https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, read `secure_url` from the response.
-- Set `path = secure_url`, then continue to `/api/publish` exactly as today. Surface the 501 message
-  if signing says storage isn't configured.
-
-**B6.** Delete vestigial `app/api/files/[filename]/route.ts` (the `<video>` now points straight at the
-Cloudinary CDN URL via `fileUrl`; nothing else links to it).
-
-**B7.** `.env.example`: add `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
-(already empty in `.env.local`). No Cloudinary upload preset needed — we use signed uploads.
-
-## Env vars to set in Netlify (final)
-
-| Var | Required | Note |
-|---|---|---|
-| `SESSION_SECRET` | **Yes** | **Fixes the current error.** `openssl rand -hex 32`. |
-| `NEON_DATABASE_URL` | **Yes** | Rotated Neon string. |
-| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | **Yes** (for uploads) | From Cloudinary console → Dashboard. |
-| `TIKTOK_*`, `META_*` | Optional | Only for those integrations. |
-
-## Gaps / notes
-
-- Cloudinary free tier ≈ 100 MB/video and limited monthly credits — fine for personal use; flag if you hit limits.
-- `posts.video_path` now stores a full Cloudinary URL (fresh DB, no legacy rows to migrate).
-- API secret never reaches the browser — only the short-lived signature does.
-- Still open from phase 1 (unchanged): sha256 password hashing is weak (recommend bcrypt/argon2);
-  `scripts/migrate.ts` doesn't run `0002_multiuser.sql` (apply manually).
+This ships behind the same gate as the earlier work: the live site needs `SESSION_SECRET`,
+`NEON_DATABASE_URL`, and `CLOUDINARY_*` set **in Netlify**, and a successful deploy of the
+latest commit. Locally it runs today (verified: 3 users, DB connects). No new env vars are
+introduced by this feature.
 
 ## Verification
 
-1. `bun add cloudinary` && `bun run build` compiles clean.
-2. Local: put `CLOUDINARY_*` in `.env.local`, `bun run dev` (free port), sign in → pick a video →
-   Publish. Confirm: `/api/upload/sign` returns 200 (501 when unconfigured); file appears in
-   Cloudinary Media Library; `/posts/[id]` plays the Cloudinary video.
-3. `rg -n "process.env.SESSION_SECRET" middleware.ts lib` → only `lib/session.ts` reads it.
-4. Netlify: set `SESSION_SECRET` + `CLOUDINARY_*` (+ `NEON_DATABASE_URL`), redeploy → `/login`
-   renders (no iron-session error), sign-in works, and a >6 MB video uploads (direct to Cloudinary).
+1. `bun run build` compiles clean.
+2. Local (`bun run dev`): visit `/signup` → create `me@test.com` / a password → lands on
+   `/settings`; the user exists in `users` and has seeded `user_platforms` rows.
+3. Sign out, sign back in via `/login` with the same creds → success. Legacy seeded users
+   still log in (sha256 fallback).
+4. Connect a platform (e.g. Discord webhook) as user A; create a second account B → B sees
+   **none** of A's connections, and B's posts list is empty. Confirms per-user isolation.
+5. Publish a post → `posts.user_id` is set; it shows only under that member's `/posts`.
+6. `rg -n "from platforms|platforms.config|caption_templates" app` → only the New Post/Settings
+   joins that intentionally read `platforms` for display metadata remain; tokens/enabled/templates
+   all go through the `user_*` tables.

@@ -10,8 +10,18 @@ export default async function NewPostPage() {
   if (!user) redirect("/login");
 
   const [platforms, templates] = await Promise.all([
-    db`select * from platforms where enabled = true order by sort`,
-    db`select * from caption_templates`,
+    db`
+      select p.id, p.name, up.kind, up.enabled, p.sort
+      from user_platforms up
+      join platforms p on p.id = up.platform_id
+      where up.user_id = ${user.userId} and up.enabled = true
+      order by p.sort
+    `,
+    db`
+      select platform_id, content_type, template
+      from user_caption_templates
+      where user_id = ${user.userId}
+    `,
   ]);
 
   return (

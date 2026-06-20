@@ -12,8 +12,19 @@ export default async function SettingsPage() {
   if (!user) redirect("/login");
 
   const [platforms, templates] = await Promise.all([
-    db`select * from platforms order by sort`,
-    db`select * from caption_templates order by platform_id`,
+    db`
+      select p.id, p.name, up.kind, up.enabled, p.sort, up.config
+      from user_platforms up
+      join platforms p on p.id = up.platform_id
+      where up.user_id = ${user.userId}
+      order by p.sort
+    `,
+    db`
+      select id, platform_id, content_type, template
+      from user_caption_templates
+      where user_id = ${user.userId}
+      order by platform_id
+    `,
   ]);
 
   const tiktokRow = platforms.find((p) => p.id === "tiktok");
@@ -30,8 +41,8 @@ export default async function SettingsPage() {
       tiktok={{ envReady: tiktokEnabled(), connected: Boolean(tokens) }}
       meta={{
         envReady: metaEnabled(),
-        igConnected: instagramRow?.kind === "api" && Boolean(instagramTokens?.ig_user_id),
-        fbConnected: facebookRow?.kind === "api" && Boolean(facebookTokens?.fb_page_id),
+        igConnected: Boolean(instagramTokens?.ig_user_id),
+        fbConnected: Boolean(facebookTokens?.fb_page_id),
         fbPageName: facebookTokens?.fb_page_name ?? null,
       }}
     />

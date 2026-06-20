@@ -36,7 +36,7 @@ export default async function PostDetailPage({
     from posts p
     left join post_targets pt on pt.post_id = p.id
     left join platforms pl on pl.id = pt.platform_id
-    where p.id = ${id}
+    where p.id = ${id} and p.user_id = ${user.userId}
     group by p.id
   `;
   if (!posts.length) notFound();

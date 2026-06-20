@@ -30,6 +30,7 @@ export default async function PostsPage() {
       json_agg(pt.* order by pt.platform_id) as post_targets
     from posts p
     left join post_targets pt on pt.post_id = p.id
+    where p.user_id = ${user.userId}
     group by p.id
     order by p.created_at desc
     limit 50

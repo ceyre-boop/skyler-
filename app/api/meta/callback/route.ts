@@ -45,26 +45,33 @@ export async function GET(request: Request) {
       expires_at: Date.now() + expires_in * 1000,
     };
 
+    const connect = async (platformId: string, tokens: MetaTokens) => {
+      const [row] = await db`
+        select config from user_platforms
+        where user_id = ${user.userId} and platform_id = ${platformId}
+      `;
+      const currentConfig = (row?.config as Record<string, unknown>) ?? {};
+      const mergedConfig = { ...currentConfig, meta_tokens: tokens };
+      await db`
+        insert into user_platforms (user_id, platform_id, kind, enabled, config)
+        values (${user.userId}, ${platformId}, ${"api"}, ${true}, ${mergedConfig as never})
+        on conflict (user_id, platform_id)
+        do update set kind = ${"api"}, config = ${mergedConfig as never}
+      `;
+    };
+
     if (igUserId) {
-      const igTokens: MetaTokens = { ...baseTokens, ig_user_id: igUserId };
-      const [instagram] = await db`select config from platforms where id = ${"instagram"}`;
-      const currentConfig = (instagram?.config as Record<string, unknown>) ?? {};
-      const mergedConfig = { ...currentConfig, meta_tokens: igTokens };
-      await db`update platforms set kind = ${"api"}, config = ${mergedConfig as never} where id = ${"instagram"}`;
+      await connect("instagram", { ...baseTokens, ig_user_id: igUserId });
     }
 
     if (fbPages.length > 0) {
       const page = fbPages[0];
-      const fbTokens: MetaTokens = {
+      await connect("facebook", {
         ...baseTokens,
         fb_page_id: page.id,
         fb_page_name: page.name,
         fb_page_token: page.access_token,
-      };
-      const [facebook] = await db`select config from platforms where id = ${"facebook"}`;
-      const currentConfig = (facebook?.config as Record<string, unknown>) ?? {};
-      const mergedConfig = { ...currentConfig, meta_tokens: fbTokens };
-      await db`update platforms set kind = ${"api"}, config = ${mergedConfig as never} where id = ${"facebook"}`;
+      });
     }
 
     if (!igUserId && fbPages.length === 0) {
