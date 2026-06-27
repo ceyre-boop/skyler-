@@ -75,28 +75,16 @@ export async function signUp(email: string, password: string): Promise<AuthResul
   const existing = await db`select 1 from users where email = ${normalized} limit 1`;
   if (existing.length) return { ok: false, error: "An account with that email already exists" };
 
+  // New members start at 0 connected accounts. Platform rows + caption templates
+  // are created when they connect each account (see lib/connections.ts).
   let created: { id: string; email: string };
   try {
-    created = await db.begin(async (sql) => {
-      const [u] = await sql`
-        insert into users (email, password_hash)
-        values (${normalized}, ${scryptHash(password)})
-        returning id, email
-      `;
-      // Seed this member's own platform connections + caption templates from the
-      // global defaults. config starts empty — they connect their own accounts.
-      await sql`
-        insert into user_platforms (user_id, platform_id, kind, enabled, config)
-        select ${u.id}, p.id, p.kind, p.enabled, '{}'::jsonb from platforms p
-        on conflict (user_id, platform_id) do nothing
-      `;
-      await sql`
-        insert into user_caption_templates (user_id, platform_id, content_type, template)
-        select ${u.id}, ct.platform_id, ct.content_type, ct.template from caption_templates ct
-        on conflict (user_id, platform_id, content_type) do nothing
-      `;
-      return { id: u.id as string, email: u.email as string };
-    });
+    const [u] = await db`
+      insert into users (email, password_hash)
+      values (${normalized}, ${scryptHash(password)})
+      returning id, email
+    `;
+    created = { id: u.id as string, email: u.email as string };
   } catch {
     return { ok: false, error: "Could not create account — please try again" };
   }

@@ -3,23 +3,16 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CONTENT_TYPES } from "@/lib/captions";
-import { ChevronRight, ChevronDown, CheckCircle2, AlertCircle, ExternalLink } from "lucide-react";
+import { CheckCircle2, AlertCircle, ChevronRight, ChevronDown } from "lucide-react";
 
-const PLATFORM_EMOJI: Record<string, string> = {
-  tiktok: "🎵",
-  instagram: "📸",
-  facebook: "👥",
-  snapchat: "👻",
-  discord: "🎮",
-};
-
-interface Platform {
+interface Account {
   id: string;
   name: string;
-  kind: string;
-  enabled: boolean;
-  sort: number;
-  config: Record<string, unknown>;
+  emoji: string;
+  connect: "oauth-tiktok" | "oauth-meta" | "webhook";
+  connected: boolean;
+  identity: string | null;
+  envReady: boolean;
 }
 
 interface Template {
@@ -29,60 +22,52 @@ interface Template {
   template: string;
 }
 
+const CONNECT_URL: Record<string, string> = {
+  "oauth-tiktok": "/api/tiktok/connect",
+  "oauth-meta": "/api/meta/connect",
+};
+const DISCONNECT_URL: Record<string, string> = {
+  tiktok: "/api/tiktok/disconnect",
+  instagram: "/api/meta/disconnect",
+  facebook: "/api/meta/disconnect",
+};
+
 export default function SettingsForm({
-  platforms: initialPlatforms,
+  accounts,
   templates: initialTemplates,
-  tiktok,
-  meta,
+  discordWebhook,
 }: {
-  platforms: Platform[];
+  accounts: Account[];
   templates: Template[];
-  tiktok: { envReady: boolean; connected: boolean };
-  meta: { envReady: boolean; igConnected: boolean; fbConnected: boolean; fbPageName: string | null };
+  discordWebhook: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [platforms, setPlatforms] = useState(initialPlatforms);
   const [templates, setTemplates] = useState(initialTemplates);
-  const [webhookUrl, setWebhookUrl] = useState(
-    (initialPlatforms.find((p) => p.id === "discord")?.config.webhookUrl as string) ?? ""
-  );
+  const [webhookUrl, setWebhookUrl] = useState(discordWebhook);
   const [openEditor, setOpenEditor] = useState<string | null>(null);
-  const [saved, setSaved] = useState<string | null>(null);
-  const tiktokError = searchParams.get("tiktok_error");
-  const metaError = searchParams.get("meta_error");
+  const [busy, setBusy] = useState(false);
+  const error = searchParams.get("tiktok_error") ?? searchParams.get("meta_error");
 
-  function flash(msg: string) {
-    setSaved(msg);
-    setTimeout(() => setSaved(null), 1500);
-  }
+  const connectedCount = accounts.filter((a) => a.connected).length;
 
   async function api(body: object) {
+    setBusy(true);
     await fetch("/api/settings", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-  }
-
-  async function togglePlatform(p: Platform) {
-    const enabled = !p.enabled;
-    setPlatforms((prev) => prev.map((x) => (x.id === p.id ? { ...x, enabled } : x)));
-    await api({ type: "toggle", platformId: p.id, enabled });
-  }
-
-  async function saveWebhook() {
-    const discord = platforms.find((p) => p.id === "discord");
-    if (!discord) return;
-    const config = { ...discord.config, webhookUrl: webhookUrl.trim() };
-    await api({ type: "config", platformId: "discord", config });
-    setPlatforms((prev) => prev.map((x) => (x.id === "discord" ? { ...x, config } : x)));
-    flash("Webhook saved");
+    setBusy(false);
+    router.refresh();
   }
 
   async function saveTemplate(t: Template) {
-    await api({ type: "template", templateId: t.id, template: t.template });
-    flash("Caption saved");
+    await fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "template", templateId: t.id, template: t.template }),
+    });
   }
 
   async function signOut() {
@@ -93,196 +78,154 @@ export default function SettingsForm({
 
   return (
     <div>
-      <h1 className="mb-6 text-3xl font-black tracking-tight">Settings</h1>
+      <h1 className="mb-1 text-3xl font-black tracking-tight">Accounts</h1>
+      <p className="mb-6 text-sm text-ink-dim">Connect the accounts you want to post to.</p>
 
-      {saved && (
-        <p className="fixed left-1/2 top-4 z-30 -translate-x-1/2 rounded-full bg-green-500/90 px-4 py-2 text-sm font-bold text-white">
-          {saved}
-        </p>
-      )}
-
-      {(tiktokError || metaError) && (
+      {error && (
         <div className="mb-6 flex items-start gap-2 rounded-2xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-300">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{tiktokError ?? metaError}</span>
+          <span>{error}</span>
         </div>
       )}
 
-      <section className="mb-8">
-        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-ink-dim">Platforms</h2>
-        <div className="overflow-hidden rounded-2xl border border-line">
-          {platforms.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => togglePlatform(p)}
-              className="flex w-full items-center gap-3 border-b border-line bg-card px-4 py-3.5 last:border-b-0"
-            >
-              <span className="text-xl">{PLATFORM_EMOJI[p.id] ?? "🌐"}</span>
-              <span className="flex-1 text-left font-bold">{p.name}</span>
-              <span className={`h-7 w-12 rounded-full p-1 transition-colors ${p.enabled ? "bg-accent" : "bg-line"}`}>
-                <span className={`block h-5 w-5 rounded-full bg-white transition-transform ${p.enabled ? "translate-x-5" : ""}`} />
-              </span>
-            </button>
-          ))}
+      {connectedCount === 0 && (
+        <div className="mb-6 rounded-2xl border border-accent/30 bg-accent/5 px-4 py-4 text-center">
+          <p className="text-2xl">🔗</p>
+          <p className="mt-1 font-bold">Connect your first account</p>
+          <p className="mt-1 text-sm text-ink-dim">Pick a platform below to start posting.</p>
         </div>
-      </section>
+      )}
 
-      <section className="mb-8">
-        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-ink-dim">Discord webhook</h2>
-        <p className="mb-2 text-xs text-ink-dim">
-          Server Settings → Integrations → Webhooks → copy the URL of the channel Fable should post to.
-        </p>
-        <div className="flex gap-2">
-          <input
-            type="url"
-            placeholder="https://discord.com/api/webhooks/…"
-            value={webhookUrl}
-            onChange={(e) => setWebhookUrl(e.target.value)}
-            className="min-w-0 flex-1 rounded-2xl border border-line bg-card px-4 py-3 text-sm outline-none focus:border-accent"
-          />
-          <button
-            type="button"
-            onClick={saveWebhook}
-            className="rounded-2xl bg-accent px-4 text-sm font-bold text-white active:bg-accent-dim"
-          >
-            Save
-          </button>
-        </div>
-      </section>
-
-      <section className="mb-8">
-        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-ink-dim">TikTok auto-posting</h2>
-        {!tiktok.envReady ? (
-          <p className="rounded-2xl border border-line bg-card px-4 py-3 text-sm text-ink-dim">
-            Add TIKTOK_CLIENT_KEY and TIKTOK_CLIENT_SECRET to .env to enable TikTok auto-posting
-          </p>
-        ) : tiktok.connected ? (
-          <div className="rounded-2xl border border-green-500/30 bg-green-500/5 px-4 py-3 text-sm">
-            <div className="mb-2 flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-400" />
-              <span className="font-bold text-green-300">TikTok connected</span>
-            </div>
-            <p className="mb-3 text-ink-dim">Posts as private until developer app review.</p>
-            <a href="/api/tiktok/disconnect" className="text-sm font-bold text-accent">
-              Disconnect
-            </a>
-          </div>
-        ) : (
-          <a href="/api/tiktok/connect" className="block rounded-2xl bg-accent py-3.5 text-center text-sm font-bold text-white active:bg-accent-dim">
-            🎵 Connect TikTok
-          </a>
-        )}
-      </section>
-
-      <section className="mb-8">
-        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-ink-dim">Connect Accounts</h2>
-        <div className="rounded-2xl border border-line bg-card p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <ExternalLink className="h-4 w-4 text-accent" />
-            <h3 className="text-sm font-bold">Meta (Instagram + Facebook)</h3>
-          </div>
-          {!meta.envReady ? (
-            <p className="rounded-2xl border border-line bg-bg px-4 py-3 text-sm text-ink-dim">
-              Add META_APP_ID and META_APP_SECRET to .env to enable Instagram + Facebook auto-posting. Create a free app at developers.facebook.com.
-            </p>
-          ) : (
-            <div>
-              <div className="mb-3 flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-line bg-bg px-3 py-2">
-                  <span className="text-sm font-bold">Instagram</span>
-                  {meta.igConnected ? (
-                    <span className="flex items-center gap-1 text-xs font-bold text-green-300">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      connected
-                    </span>
-                  ) : (
-                    <span className="text-xs font-bold text-ink-dim">not connected</span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-line bg-bg px-3 py-2">
-                  <span className="text-sm font-bold">Facebook</span>
-                  {meta.fbConnected ? (
-                    <span className="flex items-center gap-1 text-xs font-bold text-green-300">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      {meta.fbPageName ?? "connected"}
-                    </span>
-                  ) : (
-                    <span className="text-xs font-bold text-ink-dim">not connected — requires a Facebook Page</span>
-                  )}
-                </div>
+      <section className="mb-8 flex flex-col gap-3">
+        {accounts.map((a) => (
+          <div key={a.id} className="rounded-2xl border border-line bg-card p-4">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{a.emoji}</span>
+              <div className="flex-1">
+                <p className="font-bold">{a.name}</p>
+                {a.connected ? (
+                  <p className="flex items-center gap-1 text-xs font-bold text-green-300">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> {a.identity ?? "Connected"}
+                  </p>
+                ) : (
+                  <p className="text-xs text-ink-dim">Not connected</p>
+                )}
               </div>
-              {!meta.igConnected && !meta.fbConnected ? (
-                <a href="/api/meta/connect" className="block rounded-2xl bg-accent py-3.5 text-center text-sm font-bold text-white active:bg-accent-dim">
-                  Connect Meta
-                </a>
-              ) : (
-                <div className="flex gap-2">
-                  <a href="/api/meta/connect" className="flex-1 rounded-2xl bg-accent py-3.5 text-center text-sm font-bold text-white active:bg-accent-dim">
-                    Reconnect
-                  </a>
-                  <a href="/api/meta/disconnect" className="flex-1 rounded-2xl border border-line py-3.5 text-center text-sm font-bold text-ink-dim active:bg-bg">
+              {a.connected ? (
+                a.connect === "webhook" ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => api({ type: "disconnect", platformId: a.id })}
+                    className="rounded-xl border border-line px-3 py-2 text-xs font-bold text-ink-dim active:bg-bg disabled:opacity-50"
+                  >
+                    Disconnect
+                  </button>
+                ) : (
+                  <a
+                    href={DISCONNECT_URL[a.id]}
+                    className="rounded-xl border border-line px-3 py-2 text-xs font-bold text-ink-dim active:bg-bg"
+                  >
                     Disconnect
                   </a>
-                </div>
+                )
+              ) : !a.envReady ? (
+                <span className="text-xs text-ink-dim">Needs API keys</span>
+              ) : a.connect === "webhook" ? null : (
+                <a
+                  href={CONNECT_URL[a.connect]}
+                  className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white active:bg-accent-dim"
+                >
+                  Connect
+                </a>
               )}
             </div>
-          )}
-        </div>
+
+            {/* Discord webhook input (its "connect" is pasting a URL) */}
+            {a.id === "discord" && !a.connected && (
+              <div className="mt-3 flex gap-2">
+                <input
+                  type="url"
+                  placeholder="https://discord.com/api/webhooks/…"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  className="min-w-0 flex-1 rounded-xl border border-line bg-bg px-3 py-2.5 text-sm outline-none focus:border-accent"
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => api({ type: "connectDiscord", webhookUrl })}
+                  className="rounded-xl bg-accent px-4 text-sm font-bold text-white active:bg-accent-dim disabled:opacity-50"
+                >
+                  Connect
+                </button>
+              </div>
+            )}
+
+            {(a.id === "instagram" || a.id === "facebook") && !a.connected && a.envReady && (
+              <p className="mt-2 text-xs text-ink-dim">Connecting Meta links both Instagram and Facebook.</p>
+            )}
+          </div>
+        ))}
       </section>
 
-      <section className="mb-8">
-        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-ink-dim">Caption templates</h2>
-        <p className="mb-2 text-xs text-ink-dim">
-          <code className="rounded bg-card px-1">{"{{title}}"}</code> becomes the post title.
-        </p>
-        <div className="flex flex-col gap-2">
-          {platforms.map((p) => (
-            <div key={p.id} className="rounded-2xl border border-line bg-card">
-              <button
-                type="button"
-                onClick={() => setOpenEditor(openEditor === p.id ? null : p.id)}
-                className="flex w-full items-center gap-3 px-4 py-3.5"
-              >
-                <span className="text-xl">{PLATFORM_EMOJI[p.id] ?? "🌐"}</span>
-                <span className="flex-1 text-left font-bold">{p.name}</span>
-                {openEditor === p.id ? (
-                  <ChevronDown className="h-4 w-4 text-ink-dim" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-ink-dim" />
-                )}
-              </button>
-              {openEditor === p.id && (
-                <div className="flex flex-col gap-3 border-t border-line p-4">
-                  {CONTENT_TYPES.map((ct) => {
-                    const t = templates.find((t) => t.platform_id === p.id && t.content_type === ct.id);
-                    if (!t) return null;
-                    return (
-                      <div key={ct.id}>
-                        <p className="mb-1 text-xs font-bold text-ink-dim">{ct.emoji} {ct.label}</p>
-                        <textarea
-                          value={t.template}
-                          rows={3}
-                          onChange={(e) =>
-                            setTemplates((prev) =>
-                              prev.map((x) => (x.id === t.id ? { ...x, template: e.target.value } : x))
-                            )
-                          }
-                          onBlur={() => {
-                            const current = templates.find((x) => x.id === t.id);
-                            if (current) saveTemplate(current);
-                          }}
-                          className="w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm outline-none focus:border-accent"
-                        />
-                      </div>
-                    );
-                  })}
+      {/* Caption templates — only for connected platforms */}
+      {connectedCount > 0 && templates.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-ink-dim">Caption templates</h2>
+          <p className="mb-2 text-xs text-ink-dim">
+            <code className="rounded bg-card px-1">{"{{title}}"}</code> becomes the post title.
+          </p>
+          <div className="flex flex-col gap-2">
+            {accounts
+              .filter((a) => a.connected && templates.some((t) => t.platform_id === a.id))
+              .map((a) => (
+                <div key={a.id} className="rounded-2xl border border-line bg-card">
+                  <button
+                    type="button"
+                    onClick={() => setOpenEditor(openEditor === a.id ? null : a.id)}
+                    className="flex w-full items-center gap-3 px-4 py-3.5"
+                  >
+                    <span className="text-xl">{a.emoji}</span>
+                    <span className="flex-1 text-left font-bold">{a.name}</span>
+                    {openEditor === a.id ? (
+                      <ChevronDown className="h-4 w-4 text-ink-dim" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-ink-dim" />
+                    )}
+                  </button>
+                  {openEditor === a.id && (
+                    <div className="flex flex-col gap-3 border-t border-line p-4">
+                      {CONTENT_TYPES.map((ct) => {
+                        const t = templates.find((x) => x.platform_id === a.id && x.content_type === ct.id);
+                        if (!t) return null;
+                        return (
+                          <div key={ct.id}>
+                            <p className="mb-1 text-xs font-bold text-ink-dim">{ct.emoji} {ct.label}</p>
+                            <textarea
+                              value={t.template}
+                              rows={3}
+                              onChange={(e) =>
+                                setTemplates((prev) =>
+                                  prev.map((x) => (x.id === t.id ? { ...x, template: e.target.value } : x))
+                                )
+                              }
+                              onBlur={() => {
+                                const current = templates.find((x) => x.id === t.id);
+                                if (current) saveTemplate(current);
+                              }}
+                              className="w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm outline-none focus:border-accent"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
+              ))}
+          </div>
+        </section>
+      )}
 
       <button
         type="button"

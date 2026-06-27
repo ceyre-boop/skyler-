@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { connectUserPlatform } from "@/lib/connections";
 import { exchangeCode } from "@/lib/platforms/tiktok";
 
 // TikTok OAuth callback: verify state, exchange the code, store tokens on the
@@ -36,13 +37,10 @@ export async function GET(request: Request) {
       where user_id = ${user.userId} and platform_id = ${"tiktok"}
     `;
     const currentConfig = (row?.config as Record<string, unknown>) ?? {};
-    const mergedConfig = { ...currentConfig, tiktok_tokens: tokens };
-    await db`
-      insert into user_platforms (user_id, platform_id, kind, enabled, config)
-      values (${user.userId}, ${"tiktok"}, ${"api"}, ${true}, ${mergedConfig as never})
-      on conflict (user_id, platform_id)
-      do update set kind = ${"api"}, config = ${mergedConfig as never}
-    `;
+    await connectUserPlatform(user.userId, "tiktok", "api", {
+      ...currentConfig,
+      tiktok_tokens: tokens,
+    });
 
     return NextResponse.redirect(new URL("/settings", request.url));
   } catch (err) {

@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Upload, Film } from "lucide-react";
 import { CONTENT_TYPES, renderCaption, type ContentType } from "@/lib/captions";
 
@@ -124,6 +125,22 @@ export default function NewPostForm({
       setError(err instanceof Error ? err.message : String(err));
       setBusy(null);
     }
+  }
+
+  if (platforms.length === 0) {
+    return (
+      <div className="rounded-3xl border border-accent/30 bg-accent/5 p-8 text-center">
+        <p className="text-3xl">🔗</p>
+        <p className="mt-2 font-bold">No accounts connected yet</p>
+        <p className="mt-1 text-sm text-ink-dim">Connect a platform to start posting.</p>
+        <Link
+          href="/settings"
+          className="mt-4 inline-block rounded-2xl bg-accent px-6 py-3 text-sm font-extrabold text-white active:bg-accent-dim"
+        >
+          Connect an account →
+        </Link>
+      </div>
+    );
   }
 
   return (

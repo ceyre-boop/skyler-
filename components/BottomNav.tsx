@@ -7,12 +7,12 @@ import { Plus, Film, Settings } from "lucide-react";
 const tabs = [
   { href: "/", label: "New Post", Icon: Plus },
   { href: "/posts", label: "Posts", Icon: Film },
-  { href: "/settings", label: "Settings", Icon: Settings },
+  { href: "/settings", label: "Accounts", Icon: Settings },
 ] as const;
 
 export default function BottomNav() {
   const pathname = usePathname();
-  if (pathname.startsWith("/login")) return null;
+  if (pathname.startsWith("/login") || pathname.startsWith("/signup")) return null;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-lg border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">

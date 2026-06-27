@@ -1,93 +1,87 @@
-# Self-serve signup + per-member account connections
+# Connect-accounts onboarding: start at 0, connect per platform, post to any
 
 ## Context
 
-New members can't get in — login fails with "Invalid email or password" because **there
-is no signup flow at all** (`lib/auth.ts` has `signIn` but no `signUp`; no `/signup` page;
-no `/api/auth/register`). The only accounts are 3 seeded rows with unknown passwords.
+The per-member model works, but onboarding isn't friendly: new members are pre-seeded with
+all 5 platforms toggled on (including ones they haven't connected), and Settings mixes a
+toggle list + scattered connect sections. Desired flow: **a member starts with 0 connected
+accounts, is prompted to connect each platform they want (TikTok / Instagram / Facebook /
+Discord), and then posts to all connected accounts or any subset at once.** Snapchat and other
+no-API platforms are hidden (can't be auto-posted). Onboarding shape: an **Accounts hub with
+empty states** (no separate wizard).
 
-Goal: (1) anyone can **sign up** with email + password and land in the app, and (2) each
-member connects **their own** TikTok / Instagram / Facebook / Discord and posts only to
-those. Decision (confirmed): **per-member accounts** + **email/password signup** (upgrade
-hashing from weak sha256 → salted scrypt, Node built-in, no new dependency).
+**Core model shift:** a `user_platforms` row now means **"this account is connected."** Rows
+are created on connect, deleted on disconnect. New members have none. This replaces the old
+"pre-seed every platform + enabled toggle" approach.
 
-**Key finding:** the `0002_multiuser` migration already created the right tables
-(`user_platforms`, `user_caption_templates`, `posts.user_id`) — but **no code uses them yet**.
-The whole app still reads/writes the global `platforms.config` / `caption_templates`. So
-Part 2 is wiring the existing schema through the app, not designing new data.
+## Data-model changes
 
-## Part 1 — Email/password signup
+- **`lib/auth.ts` `signUp`**: stop seeding `user_platforms` and `user_caption_templates`.
+  New members start at 0.
+- **`supabase/migrations/0003_reset_connections.sql`** (new, idempotent): delete pre-seeded,
+  not-actually-connected rows so existing users also start at 0 —
+  `delete from user_platforms where not (config ? 'tiktok_tokens' or config ? 'meta_tokens' or
+  config ? 'webhookUrl');` plus `delete from user_platforms where platform_id = 'snapchat';`
+  (genuinely connected rows are kept). Run via `scripts/migrate.ts` (already runs all in order).
 
-- **`lib/auth.ts`**: add `signUp(email, password)` → insert into `users` with a salted
-  **scrypt** hash, seed the new user's `user_platforms` + `user_caption_templates` from the
-  global `platforms`/`caption_templates` (cross join, in one transaction), then create the
-  session. Replace `hashPassword` with scrypt (`crypto.scryptSync`, format
-  `scrypt$<saltHex>$<hashHex>`). `signIn` verifies scrypt **and** falls back to legacy sha256
-  so the existing rows still work.
-- **`app/api/auth/register/route.ts`** (new): POST → validate email/password (length ≥ 8),
-  `409` if email taken, else `signUp` and return ok.
-- **`app/signup/page.tsx`** (new): client form mirroring `app/login/page.tsx` → POST
-  `/api/auth/register` → on success `router.replace("/settings")` (land them where they connect
-  accounts). Show inline errors.
-- **`app/login/page.tsx`**: add a "Create an account →" link to `/signup`.
-- **`middleware.ts`**: allow `/signup` unauthenticated (today only `/login` + `/api/` are public);
-  add `/signup` to the public check and keep the signed-in→`/` redirect.
+## Shared connect helper — `lib/connections.ts` (new)
 
-## Part 2 — Per-member connections (global → `user_platforms`)
+Reused by every connect path so connecting also creates the caption templates for that platform:
+- `connectUserPlatform(userId, platformId, kind, config)` — in a transaction: upsert the
+  `user_platforms` row (`enabled = true`) **and** seed that platform's `user_caption_templates`
+  from the global `caption_templates` (`on conflict do nothing`).
+- `disconnectUserPlatform(userId, platformId)` — `delete from user_platforms where user_id/…`.
 
-**The pattern (applies everywhere):** replace global `platforms` `config`/`enabled`,
-`caption_templates`, and unscoped `posts`/`post_targets` access with rows scoped to
-`user.id` via `user_platforms` / `user_caption_templates` / `posts.user_id`. The session user
-comes from `getUser()` (already called in every one of these handlers).
+## Connect/disconnect wiring (use the helper)
 
-Representative files and what changes:
-- **`app/settings/page.tsx`** + **`app/page.tsx`** (New Post): read `user_platforms up join
-  platforms p on p.id = up.platform_id where up.user_id = ${user.id}` (name/sort/emoji from
-  `platforms`, `enabled`/`kind`/`config` from `user_platforms`); read `user_caption_templates`
-  for the user. Derive tiktok/meta "connected" from the user's row config.
-- **`app/api/settings/route.ts`** (PATCH): `toggle`/`config` → `update user_platforms ... where
-  user_id = ${user.id} and platform_id = ...`; `template` → `update user_caption_templates ...
-  where id = ${templateId} and user_id = ${user.id}` (ownership-checked).
-- **OAuth callbacks** store tokens per user: **`app/api/tiktok/callback`** and
-  **`app/api/meta/callback`** write tokens into `user_platforms` for `(user.id, platform_id)`
-  (upsert, set `kind='api'`) instead of the global `platforms` row. **`tiktok/disconnect`** and
-  **`meta/disconnect`** clear the user's row. `connect` routes are unchanged (already per-session).
-- **`app/api/publish/route.ts`**: set `posts.user_id = ${user.id}`; read the user's
-  `user_platforms` for the selected `platformIds`; use per-user tokens; write refreshed tokens
-  back to `user_platforms`.
-- **`app/api/targets/[id]/route.ts`**: join `posts` to enforce `posts.user_id = ${user.id}`;
-  read/write config from `user_platforms`.
-- **`app/posts/page.tsx`** + **`app/posts/[id]/page.tsx`**: add `where p.user_id = ${user.id}`
-  so members see only their own posts.
+- **`app/api/tiktok/callback`**: read existing row config, merge `tiktok_tokens`, call
+  `connectUserPlatform(user, "tiktok", "api", merged)`. **`tiktok/disconnect`** → `disconnectUserPlatform`.
+- **`app/api/meta/callback`**: for IG and FB, merge `meta_tokens`, call
+  `connectUserPlatform(user, "instagram"|"facebook", "api", merged)`. **`meta/disconnect`** →
+  `disconnectUserPlatform` for both. (Meta OAuth connects IG+FB together — unchanged.)
+- **Discord** (webhook): `app/api/settings/route.ts` PATCH — change `config` to call
+  `connectUserPlatform(user, "discord", "webhook", { webhookUrl })` (upsert, since there's no
+  pre-seeded row), and add a `disconnect` action → `disconnectUserPlatform`. Drop the `toggle`
+  type (no more global enable/disable; per-post selection covers it).
 
-`components/SettingsForm.tsx` / `NewPostForm.tsx` stay structurally the same — they render
-whatever rows the page passes; only the data source moves to per-user.
+## UI — Accounts hub + New Post empty state
 
-## Migration & seeding
+- **`components/SettingsForm.tsx`** → rebuild as the **Accounts hub**:
+  - Top empty state when nothing connected: "Connect your first account to start posting."
+  - One card per auto-post platform **(TikTok, Instagram, Facebook, Discord only — Snapchat
+    hidden)** with three states: **connected** (show identity — TikTok ✓, IG by id, FB page
+    name — + Disconnect), **available** (Connect button → `/api/tiktok/connect`,
+    `/api/meta/connect`, or the Discord webhook input + Save), **not configured** (env keys
+    missing → admin note). Remove the enabled-toggle list.
+  - Caption-templates section shown only for **connected** platforms.
+- **`app/settings/page.tsx`**: query the user's `user_platforms` (connected rows) + templates;
+  pass a clean per-platform `{ connected, identity, envReady }` to `SettingsForm`. Reuses
+  `tiktokEnabled()` / `metaEnabled()`.
+- **`app/page.tsx` (New Post)** + **`components/NewPostForm.tsx`**: the query already returns only
+  connected platforms (rows exist only when connected). Add an **empty state** in `NewPostForm`
+  when `platforms.length === 0`: "No accounts connected yet — Connect an account →" linking to
+  `/settings`. Keep the existing select-all-default / pick-any behavior for posting.
+- Optional: rename the BottomNav "Settings" label to "Accounts" (`components/BottomNav.tsx`).
 
-- **`scripts/migrate.ts`**: run all migrations in order (`0001_neon.sql`, `0002_multiuser.sql`)
-  instead of only `0001`. (Apply `0002` to Neon if not already applied — it's idempotent
-  `create table if not exists`.)
-- New signups get their `user_platforms` / `user_caption_templates` seeded in `signUp` (above),
-  so they appear in Settings immediately with Connect buttons and nothing connected.
+## After signup
 
-## Deploy / env note (still outstanding from before)
+`signUp` already redirects new members to `/settings` (now the Accounts hub) — they land on the
+empty state prompting them to connect their first account. No extra screen needed.
 
-This ships behind the same gate as the earlier work: the live site needs `SESSION_SECRET`,
-`NEON_DATABASE_URL`, and `CLOUDINARY_*` set **in Netlify**, and a successful deploy of the
-latest commit. Locally it runs today (verified: 3 users, DB connects). No new env vars are
-introduced by this feature.
+## Deploy / env note (unchanged)
+
+Still gated on Netlify having `SESSION_SECRET`, `NEON_DATABASE_URL`, `CLOUDINARY_*`, plus the
+platform OAuth keys (`TIKTOK_*`, `META_*`) for those Connect buttons to be enabled in production.
+Discord (webhook) works without any platform env keys.
 
 ## Verification
 
 1. `bun run build` compiles clean.
-2. Local (`bun run dev`): visit `/signup` → create `me@test.com` / a password → lands on
-   `/settings`; the user exists in `users` and has seeded `user_platforms` rows.
-3. Sign out, sign back in via `/login` with the same creds → success. Legacy seeded users
-   still log in (sha256 fallback).
-4. Connect a platform (e.g. Discord webhook) as user A; create a second account B → B sees
-   **none** of A's connections, and B's posts list is empty. Confirms per-user isolation.
-5. Publish a post → `posts.user_id` is set; it shows only under that member's `/posts`.
-6. `rg -n "from platforms|platforms.config|caption_templates" app` → only the New Post/Settings
-   joins that intentionally read `platforms` for display metadata remain; tokens/enabled/templates
-   all go through the `user_*` tables.
+2. Apply migrations (`bun run scripts/migrate.ts`) → confirm pre-seeded empty rows are gone
+   (existing + new users show 0 connected).
+3. Local (`bun run dev`): sign up → land on Accounts hub showing **empty state** + Connect
+   buttons; New Post shows the "Connect an account" empty state.
+4. Connect Discord (paste a webhook) → it appears as connected; a `user_platforms` row + that
+   platform's caption templates now exist; New Post now lists Discord and posts to it.
+5. Disconnect → row removed, New Post no longer lists it.
+6. Second member sees none of the first member's connections (isolation intact).
