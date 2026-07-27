@@ -129,7 +129,13 @@ export default function LoginPage() {
       </p>
 
       {/* Footer */}
-      <p className="text-xs text-ink-dim/50">Built for Shots Studios creators.</p>
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-xs text-ink-dim/50">Built for Shots Studios creators.</p>
+        <p className="flex gap-4 text-xs text-ink-dim/50">
+          <Link href="/terms">Terms</Link>
+          <Link href="/privacy">Privacy</Link>
+        </p>
+      </div>
     </div>
   );
 }

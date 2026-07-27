@@ -20,6 +20,10 @@ const SCOPES = "user.info.basic,video.publish";
 const SINGLE_CHUNK_MAX = 64 * 1024 * 1024;
 const CHUNK_SIZE = 10 * 1024 * 1024;
 
+// Status polling budget. Kept small on purpose — see the poll loop below.
+const STATUS_POLL_ATTEMPTS = 3;
+const STATUS_POLL_INTERVAL_MS = 2000;
+
 export function tiktokEnabled(): boolean {
   return Boolean(process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET);
 }
@@ -170,9 +174,15 @@ export const tiktok: PlatformAdapter = {
         }
       }
 
-      // 3. Poll publish status (up to ~60s).
-      for (let attempt = 0; attempt < 12; attempt++) {
-        await new Promise((r) => setTimeout(r, 5000));
+      // 3. Poll publish status briefly.
+      //
+      // The whole publish runs inside one Netlify function invocation, which is
+      // capped at 26s — the old 12 x 5s loop guaranteed a 502 before it could
+      // return. TikTok finishes transcoding asynchronously anyway, so we only
+      // poll long enough to catch an immediate rejection (bad token, unsupported
+      // media, audit restrictions) and otherwise report success-in-flight.
+      for (let attempt = 0; attempt < STATUS_POLL_ATTEMPTS; attempt++) {
+        await new Promise((r) => setTimeout(r, STATUS_POLL_INTERVAL_MS));
         const statusRes = await fetch(`${API_BASE}/post/publish/status/fetch/`, {
           method: "POST",
           headers: {

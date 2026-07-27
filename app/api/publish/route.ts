@@ -4,6 +4,10 @@ import { db } from "@/lib/db";
 import { fileUrl, fileSize } from "@/lib/storage";
 import { getAdapter } from "@/lib/platforms";
 
+// Publishing downloads the video and forwards it to each platform inline, so
+// this route needs the full serverless budget Netlify allows (26s ceiling).
+export const maxDuration = 26;
+
 export async function POST(request: Request) {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });

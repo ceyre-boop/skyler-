@@ -12,7 +12,15 @@ const tabs = [
 
 export default function BottomNav() {
   const pathname = usePathname();
-  if (pathname.startsWith("/login") || pathname.startsWith("/signup")) return null;
+  // Every tab is auth-gated, so hide the nav on signed-out surfaces.
+  if (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/terms") ||
+    pathname.startsWith("/privacy")
+  ) {
+    return null;
+  }
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-lg border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">

@@ -9,8 +9,11 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup");
   const isApi = pathname.startsWith("/api/");
+  // /terms and /privacy are the URLs submitted to the TikTok and Meta app
+  // reviews — they must resolve for signed-out visitors and crawlers.
+  const isPublic = pathname.startsWith("/terms") || pathname.startsWith("/privacy");
 
-  if (!session.userId && !isAuthPage && !isApi) {
+  if (!session.userId && !isAuthPage && !isApi && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
