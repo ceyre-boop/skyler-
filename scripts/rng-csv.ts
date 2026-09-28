@@ -10,9 +10,12 @@
  *   # 1. See which endpoints the plan exposes and what fields come back.
  *   bun scripts/rng-csv.ts --inspect --country US
  *
- *   # 2. Build the CSV (pick the endpoint --inspect showed has creators).
- *   bun scripts/rng-csv.ts --country US --min-diamonds 5000 --out creators.csv
- *   bun scripts/rng-csv.ts --source /leagues/recruitable --preview 5
+ *   # 2. Build the CSV. Default source is every league board for the country,
+ *   #    keeping only recruit_status=available (rank + division in the opener).
+ *   bun scripts/rng-csv.ts --country US --min-diamonds 5000 --out creators.csv --preview 5
+ *
+ *   #    Or the full eligible-creator feed (441k US, no stats, generic opener):
+ *   bun scripts/rng-csv.ts --source creators --limit 500
  *
  *   # Offline: render from a saved API response instead of calling the API.
  *   bun scripts/rng-csv.ts --fixture sample.json --preview 3
@@ -37,7 +40,7 @@ const COUNTRY = arg('country', 'US')!;
 const MIN_DIAMONDS = Number(arg('min-diamonds', '0'));
 const OUT = arg('out', 'creators.csv')!;
 const LIMIT = Number(arg('limit', '1000'));
-const SOURCE = arg('source', '/creators')!;
+const SOURCE = arg('source', 'board')!;
 const FIXTURE = arg('fixture');
 const PREVIEW = Number(arg('preview', '0'));
 
@@ -59,7 +62,7 @@ async function get(path: string, params: Record<string, unknown> = {}): Promise<
 }
 
 const rowsOf = (json: any): Row[] | null =>
-  Array.isArray(json) ? json : (json?.data ?? json?.creators ?? json?.results ?? null);
+  Array.isArray(json) ? json : (json?.data ?? json?.creators ?? json?.rows ?? json?.results ?? null);
 
 // Cursor pagination; also handles a plain array response.
 async function getAll(path: string, params: Record<string, unknown> = {}, cap = LIMIT): Promise<Row[]> {
@@ -75,18 +78,28 @@ async function getAll(path: string, params: Record<string, unknown> = {}, cap = 
   return out.slice(0, cap);
 }
 
+// Every league board the country has (GET /leagues lists them). Rows carry
+// no division of their own, so it is stamped on from the board.
+async function getBoards(): Promise<Row[]> {
+  const leagues = await get('/leagues');
+  const country = (leagues.countries ?? []).find((c: any) => c.country === COUNTRY);
+  if (!country) throw new Error(`No league boards for ${COUNTRY}`);
+  const out: Row[] = [];
+  for (const { division } of country.divisions) {
+    const board = await get('/leagues/board', { country: COUNTRY, division });
+    out.push(...(board.rows ?? []).map((r: Row) => ({ ...r, division })));
+  }
+  return out; // --limit caps output rows, after the recruit filter
+}
+
 // ------------------------------------------------------------- inspect
-// Probes the documented surface, prints which endpoints answer, and dumps
-// ONE record from each so FIELD below can be pinned to reality.
+// Probes the endpoints the radar plan serves and dumps ONE record from each
+// so FIELD below stays pinned to reality.
 const CANDIDATES: [string, Record<string, unknown>][] = [
-  ['/key', {}],
+  ['/me', {}],
+  ['/leagues', {}],
   ['/creators', { country: COUNTRY }],
-  ['/leagues/coverage', { country: COUNTRY }],
-  ['/leagues/board', { country: COUNTRY, division: 'A1' }],
-  ['/leagues/recruitable', { country: COUNTRY }],
-  ['/rankings/daily', { country: COUNTRY }],
-  ['/rankings/gaming', { country: COUNTRY }],
-  ['/gifters', { country: COUNTRY, sort: '7d' }],
+  ['/leagues/board', { country: COUNTRY, division: 'C5' }],
 ];
 
 async function inspect() {
@@ -104,16 +117,20 @@ async function inspect() {
 }
 
 // --------------------------------------------------------- field map
-// EDIT AFTER --inspect. Candidate field names in priority order; the first
-// one present on the record wins.
+// Candidate field names in priority order; the first one present wins.
+// Confirmed 2026-09-28 against the radar plan:
+//   /leagues/board rows: rank, username, nickname, score, follower_count,
+//     was_live, recruit_status ("available" | "not_available"), hot_status
+//   /creators: id, username, display_name, invitation_type, follower_count
+// `username` must stay first: nickname is a display name, not a handle.
 const FIELD = {
-  username: ['username', 'unique_id', 'handle', 'nickname'],
+  username: ['username', 'unique_id', 'handle'],
   diamonds: ['diamonds', 'diamonds_30d', 'diamond_count', 'score'],
   followers: ['followers', 'follower_count', 'fans'],
   division: ['division', 'league_division', 'league'],
   rank: ['rank', 'position'],
   game: ['game', 'game_name', 'gaming_category'],
-  recruitable: ['recruitable', 'is_recruitable', 'free_to_join'],
+  recruitable: ['recruit_status', 'recruitable', 'is_recruitable', 'free_to_join'],
 };
 
 const pick = (row: Row, keys: string[]) => {
@@ -122,7 +139,9 @@ const pick = (row: Row, keys: string[]) => {
 };
 
 // APIs send booleans as true/false, 0/1 or "false"; only an explicit no counts as no.
-const isNo = (v: unknown) => v === false || v === 0 || v === '0' || String(v).toLowerCase() === 'false';
+// recruit_status uses "available" / "not_available".
+const isNo = (v: unknown) =>
+  v === false || v === 0 || ['0', 'false', 'not_available'].includes(String(v).toLowerCase());
 
 type Creator = {
   username: string | null;
@@ -155,9 +174,13 @@ const norm = (row: Row): Creator => ({
 // Priority order: most specific verifiable fact first.
 function opener(c: Creator): string {
   if (c.game) return `your ${c.game} streams keep showing up on the board and they look like a good time`;
-  if (c.division && c.rank) return `you're sitting rank ${c.rank} in ${c.division} right now and that is no accident`;
-  if (c.division) return `you're holding your own in ${c.division} which is not easy`;
-  if (c.diamonds >= 50000) return `your diamond numbers this month are genuinely impressive`;
+  // Rank only brags when it is worth bragging about; rank 87 reads backhanded.
+  if (c.division && c.rank && Number(c.rank) <= 10) return `you're sitting rank ${c.rank} in ${c.division} right now and that is no accident`;
+  // "Holding your own in D5" is backhanded — D5 is the bottom division.
+  if (c.division && /^[AB]/.test(c.division)) return `you're holding your own in ${c.division} which is not easy`;
+  if (c.division) return `you popped up on the ${c.division} league board and i had to reach out`;
+  // Board score is league points, not a calendar month, so no "this month".
+  if (c.diamonds >= 50000) return `your numbers are genuinely impressive`;
   if (c.followers >= 10000) return `you've built a real room over there`;
   return `your live caught my eye`;
 }
@@ -181,7 +204,9 @@ const esc = (v: unknown) => {
 async function build() {
   const raw = FIXTURE
     ? (rowsOf(JSON.parse(await readFile(FIXTURE, 'utf8'))) ?? [])
-    : await getAll(SOURCE, { country: COUNTRY });
+    : SOURCE === 'board'
+      ? await getBoards()
+      : await getAll(SOURCE.startsWith('/') ? SOURCE : `/${SOURCE}`, { country: COUNTRY });
 
   const seen = new Set<string>();
   const rows: unknown[][] = [];
@@ -196,6 +221,7 @@ async function build() {
     if (isNo(c.recruitable)) { skipped.notRecruitable++; continue; }
     seen.add(key);
     rows.push([c.username, renderMessage(c), c.diamonds, c.division ?? '', c.game ?? '']);
+    if (rows.length >= LIMIT) break;
   }
 
   const csv = [
